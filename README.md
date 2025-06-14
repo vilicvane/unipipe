@@ -1,6 +1,6 @@
 # UniPipe
 
-A simple Rust pipe abstraction for that extends to iterator and stream.
+A simple Rust pipe abstraction that extends to iterator and stream.
 
 ```rust
 #[derive(Default)]
