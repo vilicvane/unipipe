@@ -1,11 +1,10 @@
 use futures::{StreamExt as _, TryStreamExt as _};
-use unipipe::{UniPipe, unipipe};
 
 pub struct TestPipe<T> {
     value: Option<T>,
 }
 
-impl<T: Clone> UniPipe for TestPipe<T> {
+impl<T: Clone> unipipe::UniPipe for TestPipe<T> {
     type Input = T;
     type Output = T;
 
@@ -20,14 +19,14 @@ impl<T: Clone> UniPipe for TestPipe<T> {
     }
 }
 
-#[unipipe(iterator, try_iterator)]
+#[unipipe::unipipe(iterator, try_iterator)]
 impl<T: Clone> TestPipe<T> {
     pub fn new() -> Self {
         Self { value: None }
     }
 }
 
-#[unipipe(stream, try_stream)]
+#[unipipe::unipipe(stream, try_stream)]
 impl<T> TestPipe<T>
 where
     T: Clone,

@@ -294,6 +294,8 @@ impl Extension for IteratorExtension {
                 mut self,
                 #(#args),*
             ) -> impl Iterator<Item = <#struct_name #ty_generics as ::unipipe::UniPipe>::Output> {
+                use ::unipipe::UniPipe as _;
+
                 let mut pipe = #struct_path::#method_name(#(#arg_names),*);
                 let mut completed = false;
 
@@ -376,6 +378,8 @@ impl Extension for TryIteratorExtension {
                 mut self,
                 #(#args),*
             ) -> impl Iterator<Item = Result<<#struct_name #ty_generics as ::unipipe::UniPipe>::Output, TError>> {
+                use ::unipipe::UniPipe as _;
+
                 let mut pipe = #struct_path::#method_name(#(#arg_names),*);
                 let mut completed = false;
 
@@ -461,6 +465,7 @@ impl Extension for StreamExtension {
                 #(#args),*
             ) -> impl futures::Stream<Item = <#struct_name #ty_generics as ::unipipe::UniPipe>::Output> {
                 use futures::StreamExt as _;
+                use ::unipipe::UniPipe as _;
 
                 async_stream::stream!({
                     let mut pipe = #struct_path::#method_name(#(#arg_names),*);
@@ -538,6 +543,7 @@ impl Extension for TryStreamExtension {
                 #(#args),*
             ) -> impl futures::Stream<Item = Result<<#struct_name #ty_generics as ::unipipe::UniPipe>::Output, TError>> {
                 use futures::StreamExt as _;
+                use ::unipipe::UniPipe as _;
 
                 async_stream::stream!({
                     let mut pipe = #struct_path::#method_name(#(#arg_names),*);
