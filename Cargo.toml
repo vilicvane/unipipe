@@ -1,16 +1,15 @@
+[workspace]
+resolver = "3"
+members = ["unipipe", "unipipe-macros"]
+
 [package]
-name = "unipipe"
-version = "0.1.0"
+name = "unipipe-workspace"
 edition = "2024"
-description = "A simple Rust pipe abstraction that extends to iterator and stream."
-license = "MIT"
-repository = "https://github.com/vilicvane/unipipe"
-documentation = "https://docs.rs/unipipe"
 
 [dependencies]
 async-stream = "0.3.6"
 futures = "0.3.31"
-paste = "1.0.15"
+unipipe = { path = "unipipe" }
 
 [dev-dependencies]
 itertools = "0.14.0"

@@ -1,0 +1,12 @@
+[package]
+name = "unipipe"
+version = "0.1.0"
+edition = "2024"
+description = "A simple Rust pipe abstraction that extends to iterator and stream."
+license = "MIT"
+repository = "https://github.com/vilicvane/unipipe"
+documentation = "https://docs.rs/unipipe"
+
+[dependencies]
+paste = "1.0.15"
+unipipe-macros = { path = "../unipipe-macros" }

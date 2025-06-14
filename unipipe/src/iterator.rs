@@ -1,12 +1,12 @@
 #[macro_export]
 macro_rules! extend_iterator {
     ($visibility:vis $struct_name:ident) => {
-        ::paste::paste! {
+        $crate::paste::paste! {
             $crate::extend_iterator!($visibility $struct_name, [<$struct_name:snake>]);
         }
     };
     ($visibility:vis $struct_name:ident, $method_name:ident) => {
-        ::paste::paste! {
+        $crate::paste::paste! {
             $visibility trait [<$struct_name UniPipeIteratorExt>]:
                 Iterator<Item = <$struct_name as $crate::UniPipe>::Input> + Sized
             {
@@ -48,12 +48,12 @@ macro_rules! extend_iterator {
 #[macro_export]
 macro_rules! extend_try_iterator {
     ($visibility:vis $struct_name:ident) => {
-        ::paste::paste! {
+        $crate::paste::paste! {
             $crate::extend_try_iterator!($visibility $struct_name, [<try_ $struct_name:snake>]);
         }
     };
     ($visibility:vis $struct_name:ident, $method_name:ident) => {
-        ::paste::paste! {
+        $crate::paste::paste! {
             $visibility trait [<$struct_name UniPipeIteratorTryExt>]<TError>:
                 Iterator<Item = Result<<$struct_name as $crate::UniPipe>::Input, TError>> + Sized
             {

@@ -1,12 +1,12 @@
 #[macro_export]
 macro_rules! extend_stream {
     ($visibility:vis $struct_name:ident) => {
-        ::paste::paste! {
+        $crate::paste::paste! {
             $crate::extend_stream!($visibility $struct_name, [<$struct_name:snake>]);
         }
     };
     ($visibility:vis $struct_name:ident, $method_name:ident) => {
-        ::paste::paste! {
+        $crate::paste::paste! {
             $visibility trait [<$struct_name UniPipeStreamExt>]:
                 futures::Stream<Item = <$struct_name as $crate::UniPipe>::Input> + Sized
             {
@@ -43,12 +43,12 @@ macro_rules! extend_stream {
 #[macro_export]
 macro_rules! extend_try_stream {
     ($visibility:vis $struct_name:ident) => {
-        ::paste::paste! {
+        $crate::paste::paste! {
             $crate::extend_try_stream!($visibility $struct_name, [<try_ $struct_name:snake>]);
         }
     };
     ($visibility:vis $struct_name:ident, $method_name:ident) => {
-        ::paste::paste! {
+        $crate::paste::paste! {
             $visibility trait [<$struct_name UniPipeTryStreamExt>]<TError>:
                 futures::Stream<Item = Result<<$struct_name as $crate::UniPipe>::Input, TError>> + Sized
             {
