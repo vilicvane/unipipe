@@ -2,6 +2,14 @@
 
 A simple Rust pipe abstraction that extends to iterator and stream.
 
+## Installation
+
+```sh
+cargo add unipipe
+```
+
+## Usage
+
 ```rust
 #[derive(Default)]
 pub struct MyPipe {
