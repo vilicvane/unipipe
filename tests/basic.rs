@@ -1,5 +1,5 @@
 use futures::{StreamExt as _, TryStreamExt as _};
-use unipipe::UniPipe;
+use unipipe::{UniPipe, unipipe};
 
 struct SumFive {
     sum: u32,
@@ -28,7 +28,7 @@ impl UniPipe for SumFive {
     }
 }
 
-#[unipipe::unipipe(iterator, try_iterator, stream, try_stream)]
+#[unipipe(iterator, try_iterator, stream, try_stream)]
 impl SumFive {
     pub fn new() -> Self {
         Self { sum: 0 }
