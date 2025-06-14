@@ -2,6 +2,8 @@
 name = "unipipe"
 version = "0.1.0"
 edition = "2024"
+description = "A simple Rust pipe abstraction that extends to iterator and stream."
+license = "MIT"
 
 [dependencies]
 async-stream = "0.3.6"
