@@ -2,6 +2,10 @@
 name = "unipipe-macros"
 version = "0.2.0"
 edition = "2024"
+description = "A simple Rust pipe abstraction that extends to iterator and stream."
+license = "MIT"
+repository = "https://github.com/vilicvane/unipipe"
+documentation = "https://docs.rs/unipipe"
 
 [lib]
 proc-macro = true
