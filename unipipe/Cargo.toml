@@ -8,5 +8,4 @@ repository = "https://github.com/vilicvane/unipipe"
 documentation = "https://docs.rs/unipipe"
 
 [dependencies]
-paste = "1.0.15"
 unipipe-macros = { path = "../unipipe-macros" }

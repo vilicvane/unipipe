@@ -1,10 +1,6 @@
-mod iterator;
-mod stream;
-
-pub use paste;
 pub use unipipe_macros::*;
 
-pub trait UniPipe: Default {
+pub trait UniPipe {
     type Input;
     type Output;
 

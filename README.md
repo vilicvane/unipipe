@@ -11,7 +11,6 @@ cargo add unipipe
 ## Usage
 
 ```rust
-#[derive(Default)]
 pub struct MyPipe {
     state: u32,
 }
@@ -30,9 +29,21 @@ impl UniPipe for MyPipe {
     }
 }
 
-extend_iterator!(pub MyPipe);
-extend_try_iterator!(pub MyPipe);
+#[unipipe::unipipe(iterator, try_iterator, stream, try_stream)]
+impl MyPipe {
+    // -> my_pipe()
+    pub fn new() -> Self {
+        Self { state: 0 }
+    }
 
-extend_stream!(pub MyPipe);
-extend_try_stream!(pub MyPipe);
+    // -> my_pipe_with_state(state)
+    pub fn new_with_state(state: u32) -> Self {
+        Self { state }
+    }
+
+    // -> custom_pipe()
+    pub fn custom_pipe() -> Self {
+        Self { state: 0 }
+    }
+}
 ```

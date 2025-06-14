@@ -1,7 +1,6 @@
 use futures::{StreamExt as _, TryStreamExt as _};
-use unipipe::{UniPipe, extend_iterator, extend_stream, extend_try_iterator, extend_try_stream};
+use unipipe::UniPipe;
 
-#[derive(Default)]
 struct SumFive {
     sum: u32,
 }
@@ -29,11 +28,20 @@ impl UniPipe for SumFive {
     }
 }
 
-extend_iterator!(SumFive);
-extend_try_iterator!(SumFive);
+#[unipipe::unipipe(iterator, try_iterator, stream, try_stream)]
+impl SumFive {
+    pub fn new() -> Self {
+        Self { sum: 0 }
+    }
 
-extend_stream!(SumFive);
-extend_try_stream!(SumFive);
+    pub fn sum_five_default() -> Self {
+        Self { sum: 0 }
+    }
+
+    pub fn new_with_initial_sum(sum: u32) -> Self {
+        Self { sum }
+    }
+}
 
 #[tokio::test]
 async fn test_values() {
@@ -43,6 +51,24 @@ async fn test_values() {
     assert_eq!(
         inputs.clone().into_iter().sum_five().collect::<Vec<_>>(),
         outputs
+    );
+
+    assert_eq!(
+        inputs
+            .clone()
+            .into_iter()
+            .sum_five_default()
+            .collect::<Vec<_>>(),
+        outputs
+    );
+
+    assert_eq!(
+        inputs
+            .clone()
+            .into_iter()
+            .sum_five_with_initial_sum(1)
+            .collect::<Vec<_>>(),
+        vec![7, 9, 1]
     );
 
     assert_eq!(
