@@ -568,8 +568,8 @@ fn method_name_to_pipe_method(method_name: &Ident, struct_name: &Ident) -> Ident
     let method_str = method_name.to_string();
     let struct_snake = struct_name.to_string().to_case(Case::Snake);
 
-    // If method is "new", use struct name
-    if method_str == "new" {
+    // If method is "new" or "default", use struct name
+    if method_str == "new" || method_str == "default" {
         return format_ident!("{}", struct_snake);
     }
 
