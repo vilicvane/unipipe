@@ -36,17 +36,20 @@ impl UniPipe for MyPipe {
 
 #[unipipe(iterator, try_iterator, stream, try_stream)]
 impl MyPipe {
-    // -> my_pipe()
+    // - my_pipe()
+    // - try_my_pipe()
     pub fn new() -> Self {
         Self { state: 0 }
     }
 
-    // -> my_pipe_with_state(state)
+    // - my_pipe_with_state(state)
+    // - try_my_pipe_with_state(state)
     pub fn new_with_state(state: u32) -> Self {
         Self { state }
     }
 
-    // -> custom_pipe()
+    // - custom_pipe()
+    // - try_custom_pipe()
     pub fn custom_pipe() -> Self {
         Self { state: 0 }
     }
