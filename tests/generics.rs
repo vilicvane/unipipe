@@ -26,31 +26,45 @@ impl<T: Clone> TestPipe<T> {
     }
 }
 
+pub struct LifetimeTestPipe<'a, T> {
+    _value: Option<&'a T>,
+    count: usize,
+}
+
+impl<'a, T: Clone> unipipe::UniPipe for LifetimeTestPipe<'a, T> {
+    type Input = T;
+    type Output = usize;
+
+    fn next(&mut self, input: Option<Self::Input>) -> Option<Self::Output> {
+        if input.is_some() {
+            self.count += 1;
+            Some(self.count)
+        } else {
+            None
+        }
+    }
+}
+
 #[unipipe::unipipe(stream, try_stream)]
-impl<T> TestPipe<T>
+impl<'a, T> LifetimeTestPipe<'a, Vec<T>>
 where
-    T: Clone,
+    T: Clone + 'a,
 {
     pub fn new_2() -> Self {
-        Self { value: None }
+        Self {
+            _value: None,
+            count: 0,
+        }
     }
 }
 
 #[tokio::test]
-async fn test_generic_pipe() {
+async fn test_generic_pipe_1() {
     let inputs = vec![1, 2, 3];
     let outputs = vec![1, 2, 3];
 
     assert_eq!(
         inputs.clone().into_iter().test_pipe().collect::<Vec<_>>(),
-        outputs
-    );
-
-    assert_eq!(
-        futures::stream::iter(inputs.clone())
-            .test_pipe_2()
-            .collect::<Vec<_>>()
-            .await,
         outputs
     );
 
@@ -65,10 +79,26 @@ async fn test_generic_pipe() {
             .collect::<Result<Vec<_>, _>>(),
         outputs
     );
+}
+
+#[tokio::test]
+async fn test_generic_pipe_2() {
+    let inputs = vec![vec![1], vec![2], vec![3]];
+    let outputs = vec![1, 2, 3];
+
+    assert_eq!(
+        futures::stream::iter(inputs.clone())
+            .lifetime_test_pipe_2()
+            .collect::<Vec<_>>()
+            .await,
+        outputs
+    );
+
+    let outputs = Ok(outputs);
 
     assert_eq!(
         futures::stream::iter(inputs.clone().into_iter().map(Result::<_, ()>::Ok))
-            .try_test_pipe_2()
+            .try_lifetime_test_pipe_2()
             .try_collect()
             .await,
         outputs

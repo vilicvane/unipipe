@@ -2,8 +2,9 @@ use convert_case::{Case, Casing};
 use proc_macro::TokenStream;
 use quote::{format_ident, quote};
 use syn::{
-    FnArg, GenericParam, Generics, Ident, ImplGenerics, ImplItem, ImplItemFn, ItemImpl, Pat,
-    PatType, Token, Type, TypeGenerics, Visibility, WhereClause, WherePredicate,
+    AngleBracketedGenericArguments, FnArg, GenericParam, Generics, Ident, ImplGenerics, ImplItem,
+    ImplItemFn, ItemImpl, Pat, PatType, PathArguments, Token, Type, TypeGenerics, Visibility,
+    WhereClause, WherePredicate,
     parse::{Parse, ParseStream},
     parse_macro_input, parse_quote,
     punctuated::Punctuated,
@@ -39,17 +40,26 @@ pub fn unipipe(attr: TokenStream, item: TokenStream) -> TokenStream {
     let args = parse_macro_input!(attr as UniPipeArgs);
     let input = parse_macro_input!(item as ItemImpl);
 
-    let (struct_name, struct_generics) = match &input.self_ty.as_ref() {
-        Type::Path(type_path) => {
-            let segment = type_path
-                .path
-                .segments
-                .last()
-                .expect("Expected struct name");
-            (segment.ident.clone(), &input.generics)
-        }
-        _ => panic!("Expected a simple struct name in impl"),
-    };
+    let (struct_name, impl_struct_generics, impl_struct_impl_generics) =
+        match &input.self_ty.as_ref() {
+            Type::Path(type_path) => {
+                let segment = type_path
+                    .path
+                    .segments
+                    .last()
+                    .expect("Expected struct name");
+
+                let struct_generics =
+                    if let PathArguments::AngleBracketed(generics) = &segment.arguments {
+                        Some(generics)
+                    } else {
+                        None
+                    };
+
+                (&segment.ident, struct_generics, &input.generics)
+            }
+            _ => panic!("Expected a simple struct name in impl"),
+        };
 
     let mut constructor_methods = Vec::new();
 
@@ -73,26 +83,30 @@ pub fn unipipe(attr: TokenStream, item: TokenStream) -> TokenStream {
         let extension = match extension_type.to_string().as_str() {
             "iterator" => IteratorExtension::generate(
                 &visibility,
-                &struct_name,
-                struct_generics,
+                struct_name,
+                impl_struct_generics,
+                impl_struct_impl_generics,
                 &constructor_methods,
             ),
             "try_iterator" => TryIteratorExtension::generate(
                 &visibility,
-                &struct_name,
-                struct_generics,
+                struct_name,
+                impl_struct_generics,
+                impl_struct_impl_generics,
                 &constructor_methods,
             ),
             "stream" => StreamExtension::generate(
                 &visibility,
-                &struct_name,
-                struct_generics,
+                struct_name,
+                impl_struct_generics,
+                impl_struct_impl_generics,
                 &constructor_methods,
             ),
             "try_stream" => TryStreamExtension::generate(
                 &visibility,
-                &struct_name,
-                struct_generics,
+                struct_name,
+                impl_struct_generics,
+                impl_struct_impl_generics,
                 &constructor_methods,
             ),
             _ => panic!("Unknown extension type: {}", extension_type),
@@ -101,65 +115,96 @@ pub fn unipipe(attr: TokenStream, item: TokenStream) -> TokenStream {
         output.extend(extension);
     }
 
+    eprintln!("{}", output);
+
     output.into()
 }
 
 trait Extension {
     fn get_name() -> &'static str;
 
+    fn get_pipe_method_name_prefix() -> &'static str;
+
+    fn get_extra_trait_params() -> Vec<proc_macro2::TokenStream>;
+
+    fn get_extra_impl_for_params() -> Vec<proc_macro2::TokenStream>;
+
     fn generate_trait(
-        struct_name: &Ident,
-        ty_generics: &TypeGenerics,
         visibility: &Visibility,
         trait_name: &Ident,
-        impl_generics: &ImplGenerics,
-        impl_params: &[proc_macro2::TokenStream],
-        trait_params_with_bounds: &[&GenericParam],
-        trait_param_names: &[proc_macro2::TokenStream],
+        trait_generics: &ImplGenerics,
+        trait_ty_generics: &TypeGenerics,
+        struct_with_generics: &proc_macro2::TokenStream,
+        struct_path_with_generics: &proc_macro2::TokenStream,
         where_clause: Option<&WhereClause>,
         where_clause_predicates: Option<&Punctuated<WherePredicate, Comma>>,
+        impl_generics: &ImplGenerics,
         methods: Vec<proc_macro2::TokenStream>,
     ) -> proc_macro2::TokenStream;
 
     fn generate_trait_method(
+        pipe_method_name: &Ident,
         args: &[&PatType],
         arg_names: &[&Pat],
-        struct_name: &Ident,
-        ty_generics: &TypeGenerics,
-        struct_path: &proc_macro2::TokenStream,
+        struct_with_generics: &proc_macro2::TokenStream,
+        struct_path_with_generics: &proc_macro2::TokenStream,
         method_name: &Ident,
     ) -> proc_macro2::TokenStream;
 
     fn generate(
         visibility: &Visibility,
         struct_name: &Ident,
-        struct_generics: &Generics,
+        impl_struct_generics: Option<&AngleBracketedGenericArguments>,
+        impl_struct_impl_generics: &Generics,
         constructor_methods: &[&ImplItemFn],
     ) -> proc_macro2::TokenStream {
         let trait_name = format_ident!("{}UniPipe{}Ext", struct_name, Self::get_name());
 
-        let (impl_generics, ty_generics, where_clause) = struct_generics.split_for_impl();
+        let where_clause = impl_struct_impl_generics.where_clause.as_ref();
 
-        let struct_path = if struct_generics.params.is_empty() {
-            quote! { #struct_name }
-        } else {
-            quote! { #struct_name::#ty_generics }
+        let (struct_with_generics, struct_path_with_generics) =
+            if impl_struct_impl_generics.params.is_empty() {
+                (quote! { #struct_name }, quote! { #struct_name })
+            } else {
+                (
+                    quote! { #struct_name #impl_struct_generics },
+                    quote! { #struct_name::#impl_struct_generics },
+                )
+            };
+
+        let trait_generics = {
+            let mut generics = impl_struct_impl_generics.clone();
+
+            let extra_params = Self::get_extra_trait_params();
+
+            generics
+                .params
+                .extend::<Punctuated<GenericParam, Comma>>(parse_quote! {
+                    #(#extra_params),*
+                });
+
+            generics
         };
 
-        let mut impl_params = Vec::new();
+        let impl_for_generics = {
+            let mut generics = trait_generics.clone();
 
-        for param in &struct_generics.params {
-            if let syn::GenericParam::Lifetime(_) = param {
-                impl_params.push(quote! { #param });
-            }
-        }
+            let extra_params = Self::get_extra_impl_for_params();
 
-        // Add type and const parameters
-        for param in &struct_generics.params {
-            if !matches!(param, syn::GenericParam::Lifetime(_)) {
-                impl_params.push(quote! { #param });
-            }
-        }
+            generics
+                .params
+                .extend::<Punctuated<GenericParam, Comma>>(parse_quote! {
+                    #(#extra_params),*
+                });
+
+            generics
+        };
+
+        let (trait_generics, trait_ty_generics, _) = trait_generics.split_for_impl();
+
+        let (impl_generics, _, _) = impl_for_generics.split_for_impl();
+
+        let where_clause_predicates = where_clause.map(|clause| &clause.predicates);
 
         let mut trait_methods = Vec::new();
 
@@ -180,50 +225,32 @@ trait Extension {
 
             let arg_names: Vec<_> = args.iter().map(|arg| arg.pat.as_ref()).collect();
 
+            let pipe_method_name = format_ident!(
+                "{}{}",
+                Self::get_pipe_method_name_prefix(),
+                method_name_to_pipe_method(&method.sig.ident, struct_name)
+            );
+
             trait_methods.push(Self::generate_trait_method(
+                &pipe_method_name,
                 &args,
                 &arg_names,
-                &struct_name,
-                &ty_generics,
-                &struct_path,
+                &struct_with_generics,
+                &struct_path_with_generics,
                 &method.sig.ident,
             ));
         }
 
-        let trait_params_with_bounds = struct_generics.params.iter().collect::<Vec<_>>();
-
-        let trait_param_names: Vec<_> = struct_generics
-            .params
-            .iter()
-            .map(|param| match param {
-                syn::GenericParam::Type(type_param) => {
-                    let ident = &type_param.ident;
-                    quote! { #ident }
-                }
-                syn::GenericParam::Lifetime(lifetime_param) => {
-                    let lifetime = &lifetime_param.lifetime;
-                    quote! { #lifetime }
-                }
-                syn::GenericParam::Const(const_param) => {
-                    let ident = &const_param.ident;
-                    quote! { #ident }
-                }
-            })
-            .collect();
-
-        let where_clause_predicates = where_clause.map(|clause| &clause.predicates);
-
         Self::generate_trait(
-            struct_name,
-            &ty_generics,
             visibility,
             &trait_name,
-            &impl_generics,
-            &impl_params,
-            &trait_params_with_bounds,
-            &trait_param_names,
+            &trait_generics,
+            &trait_ty_generics,
+            &struct_with_generics,
+            &struct_path_with_generics,
             where_clause,
             where_clause_predicates,
+            &impl_generics,
             trait_methods,
         )
     }
@@ -236,54 +263,62 @@ impl Extension for IteratorExtension {
         "Iterator"
     }
 
+    fn get_pipe_method_name_prefix() -> &'static str {
+        ""
+    }
+
+    fn get_extra_trait_params() -> Vec<proc_macro2::TokenStream> {
+        vec![]
+    }
+
+    fn get_extra_impl_for_params() -> Vec<proc_macro2::TokenStream> {
+        vec![quote! { TIterator }]
+    }
+
     fn generate_trait(
-        struct_name: &Ident,
-        ty_generics: &TypeGenerics,
         visibility: &Visibility,
         trait_name: &Ident,
-        impl_generics: &ImplGenerics,
-        impl_params: &[proc_macro2::TokenStream],
-        _trait_params_with_bounds: &[&GenericParam],
-        _trait_param_names: &[proc_macro2::TokenStream],
+        trait_generics: &ImplGenerics,
+        trait_ty_generics: &TypeGenerics,
+        struct_with_generics: &proc_macro2::TokenStream,
+        struct_path_with_generics: &proc_macro2::TokenStream,
         where_clause: Option<&WhereClause>,
         where_clause_predicates: Option<&Punctuated<WherePredicate, Comma>>,
+        impl_generics: &ImplGenerics,
         methods: Vec<proc_macro2::TokenStream>,
     ) -> proc_macro2::TokenStream {
         quote! {
-            #visibility trait #trait_name #impl_generics:
-                Iterator<Item = <#struct_name #ty_generics as ::unipipe::UniPipe>::Input> + Sized
+            #visibility trait #trait_name #trait_generics:
+                Iterator<Item = <#struct_with_generics as ::unipipe::UniPipe>::Input> + Sized
             #where_clause
             {
                 #(#methods)*
             }
 
-            impl<TIterator, #(#impl_params),*> #trait_name #ty_generics for TIterator
+            impl #impl_generics #trait_name #trait_ty_generics for TIterator
             where
-                TIterator: Iterator<Item = <#struct_name #ty_generics as ::unipipe::UniPipe>::Input>,
-                #struct_name #ty_generics: ::unipipe::UniPipe,
+                TIterator: Iterator<Item = <#struct_path_with_generics as ::unipipe::UniPipe>::Input>,
                 #where_clause_predicates
             {}
         }
     }
 
     fn generate_trait_method(
+        pipe_method_name: &Ident,
         args: &[&PatType],
         arg_names: &[&Pat],
-        struct_name: &Ident,
-        ty_generics: &TypeGenerics,
-        struct_path: &proc_macro2::TokenStream,
+        struct_with_generics: &proc_macro2::TokenStream,
+        struct_path_with_generics: &proc_macro2::TokenStream,
         method_name: &Ident,
     ) -> proc_macro2::TokenStream {
-        let pipe_method_name = method_name_to_pipe_method(method_name, struct_name);
-
         quote! {
             fn #pipe_method_name(
                 mut self,
                 #(#args),*
-            ) -> impl Iterator<Item = <#struct_name #ty_generics as ::unipipe::UniPipe>::Output> {
+            ) -> impl Iterator<Item = <#struct_with_generics as ::unipipe::UniPipe>::Output> {
                 use ::unipipe::UniPipe as _;
 
-                let mut pipe = #struct_path::#method_name(#(#arg_names),*);
+                let mut pipe = #struct_path_with_generics::#method_name(#(#arg_names),*);
                 let mut completed = false;
 
                 std::iter::from_fn(move || {
@@ -317,57 +352,62 @@ impl Extension for TryIteratorExtension {
         "TryIterator"
     }
 
+    fn get_pipe_method_name_prefix() -> &'static str {
+        "try_"
+    }
+
+    fn get_extra_trait_params() -> Vec<proc_macro2::TokenStream> {
+        vec![quote! { TError }]
+    }
+
+    fn get_extra_impl_for_params() -> Vec<proc_macro2::TokenStream> {
+        vec![quote! { TIterator }]
+    }
+
     fn generate_trait(
-        struct_name: &Ident,
-        ty_generics: &TypeGenerics,
         visibility: &Visibility,
         trait_name: &Ident,
-        _impl_generics: &ImplGenerics,
-        impl_params: &[proc_macro2::TokenStream],
-        trait_params_with_bounds: &[&GenericParam],
-        trait_param_names: &[proc_macro2::TokenStream],
+        trait_generics: &ImplGenerics,
+        trait_ty_generics: &TypeGenerics,
+        struct_with_generics: &proc_macro2::TokenStream,
+        struct_path_with_generics: &proc_macro2::TokenStream,
         where_clause: Option<&WhereClause>,
         where_clause_predicates: Option<&Punctuated<WherePredicate, Comma>>,
+        impl_generics: &ImplGenerics,
         methods: Vec<proc_macro2::TokenStream>,
     ) -> proc_macro2::TokenStream {
         quote! {
-            #visibility trait #trait_name<TError, #(#trait_params_with_bounds),*>:
-                Iterator<Item = Result<<#struct_name #ty_generics as ::unipipe::UniPipe>::Input, TError>> + Sized
+            #visibility trait #trait_name #trait_generics:
+                Iterator<Item = Result<<#struct_with_generics as ::unipipe::UniPipe>::Input, TError>> + Sized
             #where_clause
             {
                 #(#methods)*
             }
 
-            impl<TIterator, TError, #(#impl_params),*> #trait_name<TError, #(#trait_param_names),*> for TIterator
+            impl #impl_generics #trait_name #trait_ty_generics for TIterator
             where
-                TIterator: Iterator<Item = Result<<#struct_name #ty_generics as ::unipipe::UniPipe>::Input, TError>>,
-                #struct_name #ty_generics: ::unipipe::UniPipe,
+                TIterator: Iterator<Item = Result<<#struct_path_with_generics as ::unipipe::UniPipe>::Input, TError>>,
                 #where_clause_predicates
             {}
         }
     }
 
     fn generate_trait_method(
+        pipe_method_name: &Ident,
         args: &[&PatType],
         arg_names: &[&Pat],
-        struct_name: &Ident,
-        ty_generics: &TypeGenerics,
-        struct_path: &proc_macro2::TokenStream,
+        struct_with_generics: &proc_macro2::TokenStream,
+        struct_path_with_generics: &proc_macro2::TokenStream,
         method_name: &Ident,
     ) -> proc_macro2::TokenStream {
-        let pipe_method_name = format_ident!(
-            "try_{}",
-            method_name_to_pipe_method(method_name, struct_name)
-        );
-
         quote! {
             fn #pipe_method_name(
                 mut self,
                 #(#args),*
-            ) -> impl Iterator<Item = Result<<#struct_name #ty_generics as ::unipipe::UniPipe>::Output, TError>> {
+            ) -> impl Iterator<Item = Result<<#struct_with_generics as ::unipipe::UniPipe>::Output, TError>> {
                 use ::unipipe::UniPipe as _;
 
-                let mut pipe = #struct_path::#method_name(#(#arg_names),*);
+                let mut pipe = #struct_path_with_generics::#method_name(#(#arg_names),*);
                 let mut completed = false;
 
                 std::iter::from_fn(move || {
@@ -406,55 +446,63 @@ impl Extension for StreamExtension {
         "Stream"
     }
 
+    fn get_pipe_method_name_prefix() -> &'static str {
+        ""
+    }
+
+    fn get_extra_trait_params() -> Vec<proc_macro2::TokenStream> {
+        vec![]
+    }
+
+    fn get_extra_impl_for_params() -> Vec<proc_macro2::TokenStream> {
+        vec![quote! { TStream }]
+    }
+
     fn generate_trait(
-        struct_name: &Ident,
-        ty_generics: &TypeGenerics,
         visibility: &Visibility,
         trait_name: &Ident,
-        impl_generics: &ImplGenerics,
-        impl_params: &[proc_macro2::TokenStream],
-        _trait_params_with_bounds: &[&GenericParam],
-        _trait_param_names: &[proc_macro2::TokenStream],
+        trait_generics: &ImplGenerics,
+        trait_ty_generics: &TypeGenerics,
+        struct_with_generics: &proc_macro2::TokenStream,
+        struct_path_with_generics: &proc_macro2::TokenStream,
         where_clause: Option<&WhereClause>,
         where_clause_predicates: Option<&Punctuated<WherePredicate, Comma>>,
+        impl_generics: &ImplGenerics,
         methods: Vec<proc_macro2::TokenStream>,
     ) -> proc_macro2::TokenStream {
         quote! {
-            #visibility trait #trait_name #impl_generics:
-                ::unipipe::Stream<Item = <#struct_name #ty_generics as ::unipipe::UniPipe>::Input> + Sized
+            #visibility trait #trait_name #trait_generics:
+                ::unipipe::Stream<Item = <#struct_with_generics as ::unipipe::UniPipe>::Input> + Sized
             #where_clause
             {
                 #(#methods)*
             }
 
-            impl<TStream, #(#impl_params),*> #trait_name #ty_generics for TStream
+            impl #impl_generics #trait_name #trait_ty_generics for TStream
             where
-                TStream: ::unipipe::Stream<Item = <#struct_name #ty_generics as ::unipipe::UniPipe>::Input>,
-                #struct_name #ty_generics: ::unipipe::UniPipe,
+                TStream: ::unipipe::Stream<Item = <#struct_path_with_generics as ::unipipe::UniPipe>::Input>,
                 #where_clause_predicates
             {}
         }
     }
 
     fn generate_trait_method(
+        pipe_method_name: &Ident,
         args: &[&PatType],
         arg_names: &[&Pat],
-        struct_name: &Ident,
-        ty_generics: &TypeGenerics,
-        struct_path: &proc_macro2::TokenStream,
+        struct_with_generics: &proc_macro2::TokenStream,
+        struct_path_with_generics: &proc_macro2::TokenStream,
         method_name: &Ident,
     ) -> proc_macro2::TokenStream {
-        let pipe_method_name = method_name_to_pipe_method(method_name, struct_name);
-
         quote! {
             fn #pipe_method_name(
                 mut self,
                 #(#args),*
-            ) -> impl ::unipipe::Stream<Item = <#struct_name #ty_generics as ::unipipe::UniPipe>::Output> + Unpin {
+            ) -> impl ::unipipe::Stream<Item = <#struct_with_generics as ::unipipe::UniPipe>::Output> + Unpin {
                 use ::unipipe::{StreamExt as _, UniPipe as _};
 
                 Box::pin(::unipipe::stream!({
-                    let mut pipe = #struct_path::#method_name(#(#arg_names),*);
+                    let mut pipe = #struct_path_with_generics::#method_name(#(#arg_names),*);
 
                     let mut source = Box::pin(self);
 
@@ -480,58 +528,63 @@ impl Extension for TryStreamExtension {
         "TryStream"
     }
 
+    fn get_pipe_method_name_prefix() -> &'static str {
+        "try_"
+    }
+
+    fn get_extra_trait_params() -> Vec<proc_macro2::TokenStream> {
+        vec![quote! { TError }]
+    }
+
+    fn get_extra_impl_for_params() -> Vec<proc_macro2::TokenStream> {
+        vec![quote! { TStream }]
+    }
+
     fn generate_trait(
-        struct_name: &Ident,
-        ty_generics: &TypeGenerics,
         visibility: &Visibility,
         trait_name: &Ident,
-        _impl_generics: &ImplGenerics,
-        impl_params: &[proc_macro2::TokenStream],
-        trait_params_with_bounds: &[&GenericParam],
-        trait_param_names: &[proc_macro2::TokenStream],
+        trait_generics: &ImplGenerics,
+        trait_ty_generics: &TypeGenerics,
+        struct_with_generics: &proc_macro2::TokenStream,
+        struct_path_with_generics: &proc_macro2::TokenStream,
         where_clause: Option<&WhereClause>,
         where_clause_predicates: Option<&Punctuated<WherePredicate, Comma>>,
+        impl_generics: &ImplGenerics,
         methods: Vec<proc_macro2::TokenStream>,
     ) -> proc_macro2::TokenStream {
         quote! {
-            #visibility trait #trait_name<TError, #(#trait_params_with_bounds),*>:
-                ::unipipe::Stream<Item = Result<<#struct_name #ty_generics as ::unipipe::UniPipe>::Input, TError>> + Sized
+            #visibility trait #trait_name #trait_generics:
+                ::unipipe::Stream<Item = Result<<#struct_with_generics as ::unipipe::UniPipe>::Input, TError>> + Sized
             #where_clause
             {
                 #(#methods)*
             }
 
-            impl<TStream, TError, #(#impl_params),*> #trait_name<TError, #(#trait_param_names),*> for TStream
+            impl #impl_generics #trait_name #trait_ty_generics for TStream
             where
-                TStream: ::unipipe::Stream<Item = Result<<#struct_name #ty_generics as ::unipipe::UniPipe>::Input, TError>>,
-                #struct_name #ty_generics: ::unipipe::UniPipe,
+                TStream: ::unipipe::Stream<Item = Result<<#struct_path_with_generics as ::unipipe::UniPipe>::Input, TError>>,
                 #where_clause_predicates
             {}
         }
     }
 
     fn generate_trait_method(
+        pipe_method_name: &Ident,
         args: &[&PatType],
         arg_names: &[&Pat],
-        struct_name: &Ident,
-        ty_generics: &TypeGenerics,
-        struct_path: &proc_macro2::TokenStream,
+        struct_with_generics: &proc_macro2::TokenStream,
+        struct_path_with_generics: &proc_macro2::TokenStream,
         method_name: &Ident,
     ) -> proc_macro2::TokenStream {
-        let pipe_method_name = format_ident!(
-            "try_{}",
-            method_name_to_pipe_method(method_name, struct_name)
-        );
-
         quote! {
             fn #pipe_method_name(
                 mut self,
                 #(#args),*
-            ) -> impl ::unipipe::Stream<Item = Result<<#struct_name #ty_generics as ::unipipe::UniPipe>::Output, TError>> + Unpin {
+            ) -> impl ::unipipe::Stream<Item = Result<<#struct_with_generics as ::unipipe::UniPipe>::Output, TError>> + Unpin {
                 use ::unipipe::{StreamExt as _, UniPipe as _};
 
                 Box::pin(::unipipe::stream!({
-                    let mut pipe = #struct_path::#method_name(#(#arg_names),*);
+                    let mut pipe = #struct_path_with_generics::#method_name(#(#arg_names),*);
 
                     let mut source = Box::pin(self);
 
