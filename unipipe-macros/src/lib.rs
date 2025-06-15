@@ -115,8 +115,6 @@ pub fn unipipe(attr: TokenStream, item: TokenStream) -> TokenStream {
         output.extend(extension);
     }
 
-    eprintln!("{}", output);
-
     output.into()
 }
 
