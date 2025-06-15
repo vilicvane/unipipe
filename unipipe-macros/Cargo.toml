@@ -1,6 +1,6 @@
 [package]
 name = "unipipe-macros"
-version = "0.2.3"
+version = "0.2.4"
 edition = "2024"
 description = "A simple Rust pipe abstraction that extends to iterator and stream."
 license = "MIT"

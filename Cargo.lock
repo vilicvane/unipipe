@@ -395,7 +395,7 @@ checksum = "f6ccf251212114b54433ec949fd6a7841275f9ada20dddd2f29e9ceea4501493"
 
 [[package]]
 name = "unipipe"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "async-stream",
  "futures",
@@ -404,7 +404,7 @@ dependencies = [
 
 [[package]]
 name = "unipipe-macros"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "convert_case",
  "proc-macro2",
