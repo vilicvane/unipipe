@@ -1,5 +1,8 @@
 # UniPipe
 
+![Crates.io License](https://img.shields.io/crates/l/unipipe?style=flat-square)
+![Crates.io Version](https://img.shields.io/crates/v/unipipe?style=flat-square)
+
 A simple Rust pipe abstraction that extends to iterator and stream.
 
 ## Installation
@@ -49,3 +52,15 @@ impl MyPipe {
     }
 }
 ```
+
+To use generated methods from other files, you need to import the generated traits accordingly.
+
+```rust
+use my_pipe::MyPipeUniPipeIteratorExt as _;
+
+let mut iter = vec![1, 2, 3, 4, 5].into_iter().my_pipe();
+```
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
