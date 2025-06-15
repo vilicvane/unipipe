@@ -397,6 +397,8 @@ checksum = "f6ccf251212114b54433ec949fd6a7841275f9ada20dddd2f29e9ceea4501493"
 name = "unipipe"
 version = "0.2.3"
 dependencies = [
+ "async-stream",
+ "futures",
  "unipipe-macros",
 ]
 
@@ -414,7 +416,6 @@ dependencies = [
 name = "unipipe-workspace"
 version = "0.0.0"
 dependencies = [
- "async-stream",
  "futures",
  "tokio",
  "unipipe",

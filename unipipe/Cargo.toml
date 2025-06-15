@@ -8,4 +8,6 @@ repository = "https://github.com/vilicvane/unipipe"
 documentation = "https://docs.rs/unipipe"
 
 [dependencies]
+async-stream = "0.3"
+futures = "0.3"
 unipipe-macros = { version = "0.2.3", path = "../unipipe-macros" }

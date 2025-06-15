@@ -6,9 +6,6 @@ A simple Rust pipe abstraction that extends to iterator and stream.
 
 ```sh
 cargo add unipipe
-
-# For stream support:
-cargo add futures async-stream
 ```
 
 ## Usage

@@ -10,7 +10,6 @@ use syn::{
     token::Comma,
 };
 
-// Custom struct to parse attribute arguments
 struct UniPipeArgs {
     visibility: Option<Visibility>,
     extensions: Vec<Ident>,
@@ -18,14 +17,12 @@ struct UniPipeArgs {
 
 impl Parse for UniPipeArgs {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        // Check if first token is a visibility modifier
         let visibility = if input.peek(Token![pub]) || input.peek(Token![crate]) {
             Some(input.parse()?)
         } else {
             None
         };
 
-        // Parse extension types
         let extensions = Punctuated::<Ident, Token![,]>::parse_terminated(input)?
             .into_iter()
             .collect();
@@ -42,7 +39,6 @@ pub fn unipipe(attr: TokenStream, item: TokenStream) -> TokenStream {
     let args = parse_macro_input!(attr as UniPipeArgs);
     let input = parse_macro_input!(item as ItemImpl);
 
-    // Extract the struct name and generics from the impl block
     let (struct_name, struct_generics) = match &input.self_ty.as_ref() {
         Type::Path(type_path) => {
             let segment = type_path
@@ -55,7 +51,6 @@ pub fn unipipe(attr: TokenStream, item: TokenStream) -> TokenStream {
         _ => panic!("Expected a simple struct name in impl"),
     };
 
-    // Extract constructor methods from impl block
     let mut constructor_methods = Vec::new();
 
     for item in &input.items {
@@ -72,13 +67,8 @@ pub fn unipipe(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let visibility = args.visibility.unwrap_or_else(|| parse_quote!(pub));
 
-    // To handle where clauses properly, we need to be careful about how we output the impl block
-    // The issue is that Rust's parser sees the where clause before macro expansion,
-    // and if we output it again, it causes a "duplicate where clause" error.
-    // We'll use the parsed input directly.
     let mut output = quote! { #input };
 
-    // Generate extensions for each requested type
     for extension_type in args.extensions {
         let extension = match extension_type.to_string().as_str() {
             "iterator" => IteratorExtension::generate(
@@ -156,10 +146,8 @@ trait Extension {
             quote! { #struct_name::#ty_generics }
         };
 
-        // Build proper generic parameters for impl block with correct ordering (lifetimes first)
         let mut impl_params = Vec::new();
 
-        // Add lifetimes first
         for param in &struct_generics.params {
             if let syn::GenericParam::Lifetime(_) = param {
                 impl_params.push(quote! { #param });
@@ -202,10 +190,8 @@ trait Extension {
             ));
         }
 
-        // Extract parameter names and bounds for trait definition
         let trait_params_with_bounds = struct_generics.params.iter().collect::<Vec<_>>();
 
-        // Extract just parameter names (without bounds) for trait reference
         let trait_param_names: Vec<_> = struct_generics
             .params
             .iter()
@@ -435,7 +421,7 @@ impl Extension for StreamExtension {
     ) -> proc_macro2::TokenStream {
         quote! {
             #visibility trait #trait_name #impl_generics:
-                futures::Stream<Item = <#struct_name #ty_generics as ::unipipe::UniPipe>::Input> + Sized
+                ::unipipe::Stream<Item = <#struct_name #ty_generics as ::unipipe::UniPipe>::Input> + Sized
             #where_clause
             {
                 #(#methods)*
@@ -443,7 +429,7 @@ impl Extension for StreamExtension {
 
             impl<TStream, #(#impl_params),*> #trait_name #ty_generics for TStream
             where
-                TStream: futures::Stream<Item = <#struct_name #ty_generics as ::unipipe::UniPipe>::Input>,
+                TStream: ::unipipe::Stream<Item = <#struct_name #ty_generics as ::unipipe::UniPipe>::Input>,
                 #struct_name #ty_generics: ::unipipe::UniPipe,
                 #where_clause_predicates
             {}
@@ -464,11 +450,10 @@ impl Extension for StreamExtension {
             fn #pipe_method_name(
                 mut self,
                 #(#args),*
-            ) -> impl futures::Stream<Item = <#struct_name #ty_generics as ::unipipe::UniPipe>::Output> + Unpin {
-                use futures::StreamExt as _;
-                use ::unipipe::UniPipe as _;
+            ) -> impl ::unipipe::Stream<Item = <#struct_name #ty_generics as ::unipipe::UniPipe>::Output> + Unpin {
+                use ::unipipe::{StreamExt as _, UniPipe as _};
 
-                Box::pin(async_stream::stream!({
+                Box::pin(::unipipe::stream!({
                     let mut pipe = #struct_path::#method_name(#(#arg_names),*);
 
                     let mut source = Box::pin(self);
@@ -510,7 +495,7 @@ impl Extension for TryStreamExtension {
     ) -> proc_macro2::TokenStream {
         quote! {
             #visibility trait #trait_name<TError, #(#trait_params_with_bounds),*>:
-                futures::Stream<Item = Result<<#struct_name #ty_generics as ::unipipe::UniPipe>::Input, TError>> + Sized
+                ::unipipe::Stream<Item = Result<<#struct_name #ty_generics as ::unipipe::UniPipe>::Input, TError>> + Sized
             #where_clause
             {
                 #(#methods)*
@@ -518,7 +503,7 @@ impl Extension for TryStreamExtension {
 
             impl<TStream, TError, #(#impl_params),*> #trait_name<TError, #(#trait_param_names),*> for TStream
             where
-                TStream: futures::Stream<Item = Result<<#struct_name #ty_generics as ::unipipe::UniPipe>::Input, TError>>,
+                TStream: ::unipipe::Stream<Item = Result<<#struct_name #ty_generics as ::unipipe::UniPipe>::Input, TError>>,
                 #struct_name #ty_generics: ::unipipe::UniPipe,
                 #where_clause_predicates
             {}
@@ -542,11 +527,10 @@ impl Extension for TryStreamExtension {
             fn #pipe_method_name(
                 mut self,
                 #(#args),*
-            ) -> impl futures::Stream<Item = Result<<#struct_name #ty_generics as ::unipipe::UniPipe>::Output, TError>> + Unpin {
-                use futures::StreamExt as _;
-                use ::unipipe::UniPipe as _;
+            ) -> impl ::unipipe::Stream<Item = Result<<#struct_name #ty_generics as ::unipipe::UniPipe>::Output, TError>> + Unpin {
+                use ::unipipe::{StreamExt as _, UniPipe as _};
 
-                Box::pin(async_stream::stream!({
+                Box::pin(::unipipe::stream!({
                     let mut pipe = #struct_path::#method_name(#(#arg_names),*);
 
                     let mut source = Box::pin(self);

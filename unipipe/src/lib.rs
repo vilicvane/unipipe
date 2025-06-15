@@ -1,3 +1,6 @@
+pub use async_stream::stream;
+pub use futures::{Stream, StreamExt};
+
 pub use unipipe_macros::*;
 
 pub trait UniPipe {

@@ -95,7 +95,7 @@ pub trait MyPipeUniPipeStreamExt:
     fn my_pipe(self) -> impl futures::Stream<Item = <MyPipe as UniPipe>::Output> {
         use futures::StreamExt as _;
 
-        async_stream::stream!({
+        unipipe::stream!({
             let mut pipe = <MyPipe as Default>::default();
 
             let mut source = Box::pin(self);
@@ -126,7 +126,7 @@ pub trait MyPipeUniPipeTryStreamExt<TError>:
     ) -> impl futures::Stream<Item = Result<<MyPipe as UniPipe>::Output, TError>> {
         use futures::StreamExt as _;
 
-        async_stream::stream!({
+        unipipe::stream!({
             let mut pipe = <MyPipe as Default>::default();
 
             let mut source = Box::pin(self);
