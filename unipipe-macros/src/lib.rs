@@ -176,9 +176,6 @@ trait Extension {
         let mut trait_methods = Vec::new();
 
         for method in constructor_methods {
-            let method_name = &method.sig.ident;
-
-            // Extract method arguments (excluding &self, &mut self, self)
             let args: Vec<_> = method
                 .sig
                 .inputs
@@ -189,6 +186,10 @@ trait Extension {
                 })
                 .collect();
 
+            if args.len() != method.sig.inputs.len() {
+                continue;
+            }
+
             let arg_names: Vec<_> = args.iter().map(|arg| arg.pat.as_ref()).collect();
 
             trait_methods.push(Self::generate_trait_method(
@@ -197,7 +198,7 @@ trait Extension {
                 &struct_name,
                 &ty_generics,
                 &struct_path,
-                &method_name,
+                &method.sig.ident,
             ));
         }
 
@@ -463,11 +464,11 @@ impl Extension for StreamExtension {
             fn #pipe_method_name(
                 mut self,
                 #(#args),*
-            ) -> impl futures::Stream<Item = <#struct_name #ty_generics as ::unipipe::UniPipe>::Output> {
+            ) -> impl futures::Stream<Item = <#struct_name #ty_generics as ::unipipe::UniPipe>::Output> + Unpin {
                 use futures::StreamExt as _;
                 use ::unipipe::UniPipe as _;
 
-                async_stream::stream!({
+                Box::pin(async_stream::stream!({
                     let mut pipe = #struct_path::#method_name(#(#arg_names),*);
 
                     let mut source = Box::pin(self);
@@ -481,7 +482,7 @@ impl Extension for StreamExtension {
                     if let Some(output) = pipe.next(None) {
                         yield output;
                     }
-                })
+                }))
             }
         }
     }
@@ -541,11 +542,11 @@ impl Extension for TryStreamExtension {
             fn #pipe_method_name(
                 mut self,
                 #(#args),*
-            ) -> impl futures::Stream<Item = Result<<#struct_name #ty_generics as ::unipipe::UniPipe>::Output, TError>> {
+            ) -> impl futures::Stream<Item = Result<<#struct_name #ty_generics as ::unipipe::UniPipe>::Output, TError>> + Unpin {
                 use futures::StreamExt as _;
                 use ::unipipe::UniPipe as _;
 
-                async_stream::stream!({
+                Box::pin(async_stream::stream!({
                     let mut pipe = #struct_path::#method_name(#(#arg_names),*);
 
                     let mut source = Box::pin(self);
@@ -564,7 +565,7 @@ impl Extension for TryStreamExtension {
                     if let Some(output) = pipe.next(None) {
                         yield Ok(output);
                     }
-                })
+                }))
             }
         }
     }
