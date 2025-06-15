@@ -50,7 +50,10 @@ impl<'a, T> LifetimeTestPipe<'a, Vec<T>>
 where
     T: Clone + 'a,
 {
-    pub fn new_2() -> Self {
+    pub fn new_2<P>(_p: P) -> Self
+    where
+        P: PartialEq,
+    {
         Self {
             _value: None,
             count: 0,
@@ -88,7 +91,7 @@ async fn test_generic_pipe_2() {
 
     assert_eq!(
         futures::stream::iter(inputs.clone())
-            .lifetime_test_pipe_2()
+            .lifetime_test_pipe_2(())
             .collect::<Vec<_>>()
             .await,
         outputs
@@ -98,7 +101,7 @@ async fn test_generic_pipe_2() {
 
     assert_eq!(
         futures::stream::iter(inputs.clone().into_iter().map(Result::<_, ()>::Ok))
-            .try_lifetime_test_pipe_2()
+            .try_lifetime_test_pipe_2(())
             .try_collect()
             .await,
         outputs

@@ -142,11 +142,13 @@ trait Extension {
 
     fn generate_trait_method(
         pipe_method_name: &Ident,
+        method_name: &Ident,
+        method_impl_generics: &ImplGenerics,
+        where_clause: Option<&WhereClause>,
         args: &[&PatType],
         arg_names: &[&Pat],
         struct_with_generics: &proc_macro2::TokenStream,
         struct_path_with_generics: &proc_macro2::TokenStream,
-        method_name: &Ident,
     ) -> proc_macro2::TokenStream;
 
     fn generate(
@@ -229,13 +231,17 @@ trait Extension {
                 method_name_to_pipe_method(&method.sig.ident, struct_name)
             );
 
+            let (method_impl_generics, _, where_clause) = method.sig.generics.split_for_impl();
+
             trait_methods.push(Self::generate_trait_method(
                 &pipe_method_name,
+                &method.sig.ident,
+                &method_impl_generics,
+                where_clause,
                 &args,
                 &arg_names,
                 &struct_with_generics,
                 &struct_path_with_generics,
-                &method.sig.ident,
             ));
         }
 
@@ -303,17 +309,20 @@ impl Extension for IteratorExtension {
 
     fn generate_trait_method(
         pipe_method_name: &Ident,
+        method_name: &Ident,
+        method_impl_generics: &ImplGenerics,
+        where_clause: Option<&WhereClause>,
         args: &[&PatType],
         arg_names: &[&Pat],
         struct_with_generics: &proc_macro2::TokenStream,
         struct_path_with_generics: &proc_macro2::TokenStream,
-        method_name: &Ident,
     ) -> proc_macro2::TokenStream {
         quote! {
-            fn #pipe_method_name(
+            fn #pipe_method_name #method_impl_generics(
                 mut self,
                 #(#args),*
-            ) -> impl Iterator<Item = <#struct_with_generics as ::unipipe::UniPipe>::Output> {
+            ) -> impl Iterator<Item = <#struct_with_generics as ::unipipe::UniPipe>::Output>
+            #where_clause {
                 use ::unipipe::UniPipe as _;
 
                 let mut pipe = #struct_path_with_generics::#method_name(#(#arg_names),*);
@@ -392,17 +401,20 @@ impl Extension for TryIteratorExtension {
 
     fn generate_trait_method(
         pipe_method_name: &Ident,
+        method_name: &Ident,
+        method_impl_generics: &ImplGenerics,
+        where_clause: Option<&WhereClause>,
         args: &[&PatType],
         arg_names: &[&Pat],
         struct_with_generics: &proc_macro2::TokenStream,
         struct_path_with_generics: &proc_macro2::TokenStream,
-        method_name: &Ident,
     ) -> proc_macro2::TokenStream {
         quote! {
-            fn #pipe_method_name(
+            fn #pipe_method_name #method_impl_generics(
                 mut self,
                 #(#args),*
-            ) -> impl Iterator<Item = Result<<#struct_with_generics as ::unipipe::UniPipe>::Output, TError>> {
+            ) -> impl Iterator<Item = Result<<#struct_with_generics as ::unipipe::UniPipe>::Output, TError>>
+            #where_clause {
                 use ::unipipe::UniPipe as _;
 
                 let mut pipe = #struct_path_with_generics::#method_name(#(#arg_names),*);
@@ -486,17 +498,20 @@ impl Extension for StreamExtension {
 
     fn generate_trait_method(
         pipe_method_name: &Ident,
+        method_name: &Ident,
+        method_impl_generics: &ImplGenerics,
+        where_clause: Option<&WhereClause>,
         args: &[&PatType],
         arg_names: &[&Pat],
         struct_with_generics: &proc_macro2::TokenStream,
         struct_path_with_generics: &proc_macro2::TokenStream,
-        method_name: &Ident,
     ) -> proc_macro2::TokenStream {
         quote! {
-            fn #pipe_method_name(
+            fn #pipe_method_name #method_impl_generics(
                 mut self,
                 #(#args),*
-            ) -> impl ::unipipe::Stream<Item = <#struct_with_generics as ::unipipe::UniPipe>::Output> + Unpin {
+            ) -> impl ::unipipe::Stream<Item = <#struct_with_generics as ::unipipe::UniPipe>::Output> + Unpin
+            #where_clause {
                 use ::unipipe::{StreamExt as _, UniPipe as _};
 
                 Box::pin(::unipipe::stream!({
@@ -568,17 +583,20 @@ impl Extension for TryStreamExtension {
 
     fn generate_trait_method(
         pipe_method_name: &Ident,
+        method_name: &Ident,
+        method_impl_generics: &ImplGenerics,
+        where_clause: Option<&WhereClause>,
         args: &[&PatType],
         arg_names: &[&Pat],
         struct_with_generics: &proc_macro2::TokenStream,
         struct_path_with_generics: &proc_macro2::TokenStream,
-        method_name: &Ident,
     ) -> proc_macro2::TokenStream {
         quote! {
-            fn #pipe_method_name(
+            fn #pipe_method_name #method_impl_generics(
                 mut self,
                 #(#args),*
-            ) -> impl ::unipipe::Stream<Item = Result<<#struct_with_generics as ::unipipe::UniPipe>::Output, TError>> + Unpin {
+            ) -> impl ::unipipe::Stream<Item = Result<<#struct_with_generics as ::unipipe::UniPipe>::Output, TError>> + Unpin
+            #where_clause {
                 use ::unipipe::{StreamExt as _, UniPipe as _};
 
                 Box::pin(::unipipe::stream!({
