@@ -1,6 +1,6 @@
 [package]
 name = "unipipe"
-version = "0.2.4"
+version = "0.2.5"
 edition = "2024"
 description = "A simple Rust pipe abstraction that extends to iterator and stream."
 keywords = ["pipe", "iterator", "stream"]
@@ -11,4 +11,4 @@ documentation = "https://docs.rs/unipipe"
 [dependencies]
 async-stream = "0.3"
 futures = "0.3"
-unipipe-macros = { version = "0.2.4", path = "../unipipe-macros" }
+unipipe-macros = { version = "0.2.5", path = "../unipipe-macros" }
