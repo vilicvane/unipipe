@@ -14,7 +14,7 @@ pub enum Output<T> {
     One(T),
     Many(Vec<T>),
     Next,
-    End,
+    Done,
 }
 
 impl<T> From<Option<T>> for Output<T> {

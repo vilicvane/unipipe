@@ -357,7 +357,7 @@ impl Extension for IteratorExtension {
                                 }
                             }
                             Output::Next => {}
-                            Output::End => return None,
+                            Output::Done => return None,
                         }
                     }
                 })
@@ -469,7 +469,7 @@ impl Extension for TryIteratorExtension {
                                 }
                             }
                             Output::Next => {}
-                            Output::End => return None,
+                            Output::Done => return None,
                         }
                     }
                 })
@@ -568,7 +568,7 @@ impl Extension for StreamExtension {
                                 }
                             }
                             Output::Next => {}
-                            Output::End => break,
+                            Output::Done => break,
                         }
                     }
                 }))
@@ -676,7 +676,7 @@ impl Extension for TryStreamExtension {
                                 }
                             }
                             Output::Next => {}
-                            Output::End => break,
+                            Output::Done => break,
                         }
                     }
                 }))

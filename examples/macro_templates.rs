@@ -54,7 +54,7 @@ pub trait MyPipeUniPipeIteratorExt: Iterator<Item = <MyPipe as UniPipe>::Input> 
                         }
                     }
                     Output::Next => {}
-                    Output::End => return None,
+                    Output::Done => return None,
                 }
             }
         })
@@ -108,7 +108,7 @@ pub trait MyPipeUniPipeIteratorTryExt<TError>:
                         }
                     }
                     Output::Next => {}
-                    Output::End => return None,
+                    Output::Done => return None,
                 }
             }
         })
@@ -151,7 +151,7 @@ pub trait MyPipeUniPipeStreamExt:
                         }
                     }
                     Output::Next => {}
-                    Output::End => break,
+                    Output::Done => break,
                 }
             }
         })
@@ -205,7 +205,7 @@ pub trait MyPipeUniPipeTryStreamExt<TError>:
                         }
                     }
                     Output::Next => {}
-                    Output::End => break,
+                    Output::Done => break,
                 }
             }
         })
