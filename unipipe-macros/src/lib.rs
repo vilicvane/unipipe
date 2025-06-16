@@ -346,8 +346,7 @@ impl Extension for IteratorExtension {
                             source_ended = true;
                         }
 
-                        match pipe.next(input) {
-                            Output::None => {}
+                        match pipe.next(input).into() {
                             Output::One(output) => return Some(output),
                             Output::Many(outputs) => {
                                 let mut outputs = outputs.into_iter();
@@ -357,6 +356,7 @@ impl Extension for IteratorExtension {
                                     return Some(output);
                                 }
                             }
+                            Output::Next => {}
                             Output::End => return None,
                         }
                     }
@@ -458,8 +458,7 @@ impl Extension for TryIteratorExtension {
                             None => None,
                         };
 
-                        match pipe.next(input) {
-                            Output::None => {}
+                        match pipe.next(input).into() {
                             Output::One(output) => return Some(Ok(output)),
                             Output::Many(outputs) => {
                                 let mut outputs = outputs.into_iter();
@@ -469,6 +468,7 @@ impl Extension for TryIteratorExtension {
                                     return Some(Ok(output));
                                 }
                             }
+                            Output::Next => {}
                             Output::End => return None,
                         }
                     }
@@ -560,14 +560,14 @@ impl Extension for StreamExtension {
                             source_ended = true;
                         }
 
-                        match pipe.next(input) {
-                            Output::None => {}
+                        match pipe.next(input).into() {
                             Output::One(output) => yield output,
                             Output::Many(outputs) => {
                                 for output in outputs {
                                     yield output;
                                 }
                             }
+                            Output::Next => {}
                             Output::End => break,
                         }
                     }
@@ -668,14 +668,14 @@ impl Extension for TryStreamExtension {
                             None => None,
                         };
 
-                        match pipe.next(input) {
-                            Output::None => {}
+                        match pipe.next(input).into() {
                             Output::One(output) => yield Ok(output),
                             Output::Many(outputs) => {
                                 for output in outputs {
                                     yield Ok(output);
                                 }
                             }
+                            Output::Next => {}
                             Output::End => break,
                         }
                     }

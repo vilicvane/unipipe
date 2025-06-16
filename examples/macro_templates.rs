@@ -9,14 +9,14 @@ impl UniPipe for MyPipe {
     type Input = String;
     type Output = usize;
 
-    fn next(&mut self, input: Option<Self::Input>) -> Output<Self::Output> {
+    fn next(&mut self, input: Option<Self::Input>) -> impl Into<Output<Self::Output>> {
         if let Some(input) = input {
             if input.len() > 0 {
-                return Some(input.len()).into();
+                return Some(input.len());
             }
         }
 
-        None.into()
+        None
     }
 }
 
@@ -43,8 +43,7 @@ pub trait MyPipeUniPipeIteratorExt: Iterator<Item = <MyPipe as UniPipe>::Input> 
                     source_ended = true;
                 }
 
-                match pipe.next(input) {
-                    Output::None => {}
+                match pipe.next(input).into() {
                     Output::One(output) => return Some(output),
                     Output::Many(outputs) => {
                         let mut outputs = outputs.into_iter();
@@ -54,6 +53,7 @@ pub trait MyPipeUniPipeIteratorExt: Iterator<Item = <MyPipe as UniPipe>::Input> 
                             return Some(output);
                         }
                     }
+                    Output::Next => {}
                     Output::End => return None,
                 }
             }
@@ -97,8 +97,7 @@ pub trait MyPipeUniPipeIteratorTryExt<TError>:
                     None => None,
                 };
 
-                match pipe.next(input) {
-                    Output::None => {}
+                match pipe.next(input).into() {
                     Output::One(output) => return Some(Ok(output)),
                     Output::Many(outputs) => {
                         let mut outputs = outputs.into_iter();
@@ -108,6 +107,7 @@ pub trait MyPipeUniPipeIteratorTryExt<TError>:
                             return Some(Ok(output));
                         }
                     }
+                    Output::Next => {}
                     Output::End => return None,
                 }
             }
@@ -143,14 +143,14 @@ pub trait MyPipeUniPipeStreamExt:
                     source_ended = true;
                 }
 
-                match pipe.next(input) {
-                    Output::None => {}
+                match pipe.next(input).into() {
                     Output::One(output) => yield output,
                     Output::Many(outputs) => {
                         for output in outputs {
                             yield output;
                         }
                     }
+                    Output::Next => {}
                     Output::End => break,
                 }
             }
@@ -197,14 +197,14 @@ pub trait MyPipeUniPipeTryStreamExt<TError>:
                     None => None,
                 };
 
-                match pipe.next(input) {
-                    Output::None => {}
+                match pipe.next(input).into() {
                     Output::One(output) => yield Ok(output),
                     Output::Many(outputs) => {
                         for output in outputs {
                             yield Ok(output);
                         }
                     }
+                    Output::Next => {}
                     Output::End => break,
                 }
             }

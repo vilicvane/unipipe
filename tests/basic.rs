@@ -9,7 +9,8 @@ impl UniPipe for SumFive {
     type Input = u32;
     type Output = u32;
 
-    fn next(&mut self, input: Option<Self::Input>) -> Output<Self::Output> {
+    #[allow(refining_impl_trait)]
+    fn next(&mut self, input: Option<Self::Input>) -> Option<Self::Output> {
         if let Some(input) = input {
             let sum = self.sum + input;
 
@@ -25,7 +26,6 @@ impl UniPipe for SumFive {
 
             if sum > 0 { Some(sum) } else { None }
         }
-        .into()
     }
 }
 

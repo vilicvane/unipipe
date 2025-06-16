@@ -9,6 +9,7 @@ impl UniPipe for AdvancedOutput1 {
     type Input = usize;
     type Output = usize;
 
+    #[allow(refining_impl_trait)]
     fn next(&mut self, input: Option<Self::Input>) -> Output<Self::Output> {
         if let Some(input) = input {
             Output::Many((1..=input).collect())
@@ -16,7 +17,7 @@ impl UniPipe for AdvancedOutput1 {
             if self.end {
                 Output::One(0)
             } else {
-                Output::None
+                Output::Next
             }
         }
     }
@@ -127,7 +128,7 @@ impl UniPipe for AdvancedOutput2 {
     type Input = usize;
     type Output = usize;
 
-    fn next(&mut self, input: Option<Self::Input>) -> Output<Self::Output> {
+    fn next(&mut self, input: Option<Self::Input>) -> impl Into<Output<Self::Output>> {
         if let Some(input) = input {
             if input > self.limit {
                 Output::End
@@ -135,7 +136,7 @@ impl UniPipe for AdvancedOutput2 {
                 Output::One(input)
             }
         } else {
-            Output::None
+            Output::Next
         }
     }
 }
