@@ -26,6 +26,79 @@ impl<T> Output<T> {
             _ => false,
         }
     }
+
+    pub fn map<TMapped, TCallback>(self, callback: TCallback) -> Output<TMapped>
+    where
+        TCallback: Fn(T) -> TMapped,
+    {
+        match self {
+            Self::Next => Output::<TMapped>::Next,
+            Self::One(value) => Output::<TMapped>::One(callback(value)),
+            Self::Many(values) => {
+                Output::<TMapped>::Many(values.into_iter().map(callback).collect())
+            }
+            Self::Done => Output::<TMapped>::Done,
+            Self::DoneWithOne(value) => Output::<TMapped>::DoneWithOne(callback(value)),
+            Self::DoneWithMany(values) => {
+                Output::<TMapped>::DoneWithMany(values.into_iter().map(callback).collect())
+            }
+        }
+    }
+
+    pub fn pipe<TPipe, TPipeOutput: std::fmt::Debug>(self, pipe: &mut TPipe) -> Output<TPipeOutput>
+    where
+        TPipe: UniPipe<Input = T, Output = TPipeOutput>,
+    {
+        let upper_done = self.is_done();
+
+        let output = match self {
+            Self::Next => Output::<TPipeOutput>::Next,
+            Self::One(value) | Self::DoneWithOne(value) => pipe.next(Some(value)).into(),
+            Self::Many(values) | Self::DoneWithMany(values) => {
+                let mut aggregated_outputs = Vec::new();
+
+                let mut inputs = values.into_iter().map(Some).collect::<Vec<_>>();
+
+                if upper_done {
+                    inputs.push(None);
+                }
+
+                for value in inputs {
+                    let next_output: Output<_> = pipe.next(value).into();
+
+                    let done = next_output.is_done();
+
+                    match next_output {
+                        Output::One(output) | Output::DoneWithOne(output) => {
+                            aggregated_outputs.push(output)
+                        }
+                        Output::Many(outputs) | Output::DoneWithMany(outputs) => {
+                            aggregated_outputs.extend(outputs)
+                        }
+                        Output::Next | Output::Done => {}
+                    }
+
+                    if done {
+                        return Output::<TPipeOutput>::DoneWithMany(aggregated_outputs);
+                    }
+                }
+
+                Output::<TPipeOutput>::Many(aggregated_outputs)
+            }
+            Self::Done => pipe.next(None).into(),
+        };
+
+        if upper_done { output.done() } else { output }
+    }
+
+    fn done(self) -> Output<T> {
+        match self {
+            Self::Next => Self::Done,
+            Self::One(value) => Self::DoneWithOne(value),
+            Self::Many(values) => Self::DoneWithMany(values),
+            _ => self,
+        }
+    }
 }
 
 impl<T> From<Option<T>> for Output<T> {

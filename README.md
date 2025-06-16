@@ -29,6 +29,8 @@ impl UniPipe for MyPipe {
             self.state += input;
             Some(self.state)
         } else {
+            // Returning `None` does not indicate the end of the pipe,
+            // use `Output::Done` instead.
             None
         }
     }
@@ -62,6 +64,50 @@ To use generated methods from other files, you need to import the generated trai
 use my_pipe::MyPipeUniPipeIteratorExt as _;
 
 let mut iter = vec![1, 2, 3, 4, 5].into_iter().my_pipe();
+```
+
+### Output
+
+`Output` is the "final" return type of `UniPipe::next()`. It can be one of the following:
+
+- `Output::Next` - equivalent to `Option::None`
+- `Output::One(value)` - equivalent to `Option::Some(value)`
+- `Output::Many(values)`
+- `Output::Done`
+- `Output::DoneWithOne(value)`
+- `Output::DoneWithMany(values)`
+
+#### Map `Output`
+
+`Output::map()` is a method that allows you to transform the value of the `Output` without changing the structure of the `Output`.
+
+```rust
+impl UniPipe for OuterPipe {
+    type Input = i32;
+    type Output = i32;
+
+    fn next(&mut self, input: Option<Self::Input>) -> Output<Self::Output> {
+        self.inner.next(input).map(|output| -output)
+    }
+}
+```
+
+#### Pipe `Output`
+
+`Output::pipe()` is a method that allows you to pipe the `Output` to another `UniPipe`.
+
+```rust
+impl UniPipe for ComposePipe {
+    type Input = i32;
+    type Output = i32;
+
+    fn next(&mut self, input: Option<Self::Input>) -> Output<Self::Output> {
+        self.first
+            .next(input)
+            .pipe(&mut self.second)
+            .pipe(&mut self.third)
+    }
+}
 ```
 
 ## License
