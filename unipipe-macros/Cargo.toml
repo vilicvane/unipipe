@@ -1,6 +1,6 @@
 [package]
 name = "unipipe-macros"
-version = "0.2.6"
+version = "0.2.7"
 edition = "2024"
 description = "A simple Rust pipe abstraction that extends to iterator and stream."
 keywords = ["pipe", "iterator", "stream"]
