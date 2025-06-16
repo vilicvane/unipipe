@@ -1,5 +1,5 @@
 use futures::StreamExt as _;
-use unipipe::{Output, UniPipe};
+use unipipe::{Output, UniPipe, unipipe};
 
 struct AdvancedOutput1 {
     end: bool,
@@ -23,7 +23,7 @@ impl UniPipe for AdvancedOutput1 {
     }
 }
 
-#[unipipe::unipipe(iterator, try_iterator, stream, try_stream)]
+#[unipipe(iterator, try_iterator, stream, try_stream)]
 impl AdvancedOutput1 {
     pub fn new() -> Self {
         Self { end: false }
@@ -141,7 +141,7 @@ impl UniPipe for AdvancedOutput2 {
     }
 }
 
-#[unipipe::unipipe(iterator, try_iterator, stream, try_stream)]
+#[unipipe(iterator, try_iterator, stream, try_stream)]
 impl AdvancedOutput2 {
     pub fn new(limit: usize) -> Self {
         Self { limit }

@@ -323,12 +323,12 @@ impl Extension for IteratorExtension {
                 #(#args),*
             ) -> impl Iterator<Item = <#struct_with_generics as ::unipipe::UniPipe>::Output>
             #where_clause {
-                use ::unipipe::UniPipe as _;
+                use ::unipipe::*;
 
                 let mut pipe = #struct_path_with_generics::#method_name(#(#arg_names),*);
 
                 let mut pending = std::collections::VecDeque::new();
-                let mut source_ended = false;
+                let mut done = false;
 
                 std::iter::from_fn(move || {
                     if let Some(output) = pending.pop_front() {
@@ -336,19 +336,25 @@ impl Extension for IteratorExtension {
                     }
 
                     loop {
-                        if source_ended {
+                        if done {
                             return None;
                         }
 
                         let input = self.next();
 
                         if input.is_none() {
-                            source_ended = true;
+                            done = true;
                         }
 
-                        match pipe.next(input).into() {
-                            Output::One(output) => return Some(output),
-                            Output::Many(outputs) => {
+                        let next_output: Output<_> = pipe.next(input).into();
+
+                        if next_output.is_done() {
+                            done = true;
+                        }
+
+                        match next_output {
+                            Output::One(output) | Output::DoneWithOne(output) => return Some(output),
+                            Output::Many(outputs) | Output::DoneWithMany(outputs) => {
                                 let mut outputs = outputs.into_iter();
 
                                 if let Some(output) = outputs.next() {
@@ -356,8 +362,7 @@ impl Extension for IteratorExtension {
                                     return Some(output);
                                 }
                             }
-                            Output::Next => {}
-                            Output::Done => return None,
+                            Output::Next | Output::Done => {}
                         }
                     }
                 })
@@ -429,12 +434,12 @@ impl Extension for TryIteratorExtension {
                 #(#args),*
             ) -> impl Iterator<Item = Result<<#struct_with_generics as ::unipipe::UniPipe>::Output, TError>>
             #where_clause {
-                use ::unipipe::UniPipe as _;
+                use ::unipipe::*;
 
                 let mut pipe = #struct_path_with_generics::#method_name(#(#arg_names),*);
 
                 let mut pending = std::collections::VecDeque::new();
-                let mut source_ended = false;
+                let mut done = false;
 
                 std::iter::from_fn(move || {
                     if let Some(output) = pending.pop_front() {
@@ -442,14 +447,14 @@ impl Extension for TryIteratorExtension {
                     }
 
                     loop {
-                        if source_ended {
+                        if done {
                             return None;
                         }
 
                         let input = self.next();
 
                         if input.is_none() {
-                            source_ended = true;
+                            done = true;
                         }
 
                         let input = match input {
@@ -458,9 +463,15 @@ impl Extension for TryIteratorExtension {
                             None => None,
                         };
 
-                        match pipe.next(input).into() {
-                            Output::One(output) => return Some(Ok(output)),
-                            Output::Many(outputs) => {
+                        let next_output: Output<_> = pipe.next(input).into();
+
+                        if next_output.is_done() {
+                            done = true;
+                        }
+
+                        match next_output {
+                            Output::One(output) | Output::DoneWithOne(output) => return Some(Ok(output)),
+                            Output::Many(outputs) | Output::DoneWithMany(outputs) => {
                                 let mut outputs = outputs.into_iter();
 
                                 if let Some(output) = outputs.next() {
@@ -468,8 +479,7 @@ impl Extension for TryIteratorExtension {
                                     return Some(Ok(output));
                                 }
                             }
-                            Output::Next => {}
-                            Output::Done => return None,
+                            Output::Next | Output::Done => {}
                         }
                     }
                 })
@@ -541,34 +551,39 @@ impl Extension for StreamExtension {
                 #(#args),*
             ) -> impl ::unipipe::Stream<Item = <#struct_with_generics as ::unipipe::UniPipe>::Output> + Unpin
             #where_clause {
-                use ::unipipe::{StreamExt as _, UniPipe as _};
+                use ::unipipe::*;
 
                 Box::pin(::unipipe::stream!({
                     let mut pipe = #struct_path_with_generics::#method_name(#(#arg_names),*);
 
                     let mut source = Box::pin(self);
-                    let mut source_ended = false;
+                    let mut done = false;
 
                     loop {
-                        if source_ended {
+                        if done {
                             break;
                         }
 
                         let input = source.next().await;
 
                         if input.is_none() {
-                            source_ended = true;
+                            done = true;
                         }
 
-                        match pipe.next(input).into() {
-                            Output::One(output) => yield output,
-                            Output::Many(outputs) => {
+                        let next_output: Output<_> = pipe.next(input).into();
+
+                        if next_output.is_done() {
+                            done = true;
+                        }
+
+                        match next_output {
+                            Output::One(output) | Output::DoneWithOne(output) => yield output,
+                            Output::Many(outputs) | Output::DoneWithMany(outputs) => {
                                 for output in outputs {
                                     yield output;
                                 }
                             }
-                            Output::Next => {}
-                            Output::Done => break,
+                            Output::Next | Output::Done => {}
                         }
                     }
                 }))
@@ -640,23 +655,23 @@ impl Extension for TryStreamExtension {
                 #(#args),*
             ) -> impl ::unipipe::Stream<Item = Result<<#struct_with_generics as ::unipipe::UniPipe>::Output, TError>> + Unpin
             #where_clause {
-                use ::unipipe::{StreamExt as _, UniPipe as _};
+                use ::unipipe::*;
 
                 Box::pin(::unipipe::stream!({
                     let mut pipe = #struct_path_with_generics::#method_name(#(#arg_names),*);
 
                     let mut source = Box::pin(self);
-                    let mut source_ended = false;
+                    let mut done = false;
 
                     loop {
-                        if source_ended {
+                        if done {
                             break;
                         }
 
                         let input = source.next().await;
 
                         if input.is_none() {
-                            source_ended = true;
+                            done = true;
                         }
 
                         let input = match input {
@@ -668,15 +683,20 @@ impl Extension for TryStreamExtension {
                             None => None,
                         };
 
-                        match pipe.next(input).into() {
-                            Output::One(output) => yield Ok(output),
-                            Output::Many(outputs) => {
+                        let next_output: Output<_> = pipe.next(input).into();
+
+                        if next_output.is_done() {
+                            done = true;
+                        }
+
+                        match next_output {
+                            Output::One(output) | Output::DoneWithOne(output) => yield Ok(output),
+                            Output::Many(outputs) | Output::DoneWithMany(outputs) => {
                                 for output in outputs {
                                     yield Ok(output);
                                 }
                             }
-                            Output::Next => {}
-                            Output::Done => break,
+                            Output::Next | Output::Done => {}
                         }
                     }
                 }))

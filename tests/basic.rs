@@ -1,5 +1,5 @@
 use futures::{StreamExt as _, TryStreamExt as _};
-use unipipe::{Output, UniPipe, unipipe};
+use unipipe::{UniPipe, unipipe};
 
 struct SumFive {
     sum: u32,

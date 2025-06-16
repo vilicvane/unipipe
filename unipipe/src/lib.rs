@@ -11,10 +11,21 @@ pub trait UniPipe {
 }
 
 pub enum Output<T> {
+    Next,
     One(T),
     Many(Vec<T>),
-    Next,
     Done,
+    DoneWithOne(T),
+    DoneWithMany(Vec<T>),
+}
+
+impl<T> Output<T> {
+    pub fn is_done(&self) -> bool {
+        match self {
+            Self::Done | Self::DoneWithOne(_) | Self::DoneWithMany(_) => true,
+            _ => false,
+        }
+    }
 }
 
 impl<T> From<Option<T>> for Output<T> {
