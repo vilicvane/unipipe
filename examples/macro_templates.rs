@@ -1,4 +1,6 @@
-use unipipe::UniPipe;
+use std::collections::VecDeque;
+
+use unipipe::{Output, UniPipe};
 
 #[derive(Default)]
 pub struct MyPipe {}
@@ -7,40 +9,54 @@ impl UniPipe for MyPipe {
     type Input = String;
     type Output = usize;
 
-    fn next(&mut self, input: Option<Self::Input>) -> Option<Self::Output> {
+    fn next(&mut self, input: Option<Self::Input>) -> Output<Self::Output> {
         if let Some(input) = input {
             if input.len() > 0 {
-                return Some(input.len());
+                return Some(input.len()).into();
             }
         }
 
-        None
+        None.into()
     }
 }
 
 pub trait MyPipeUniPipeIteratorExt: Iterator<Item = <MyPipe as UniPipe>::Input> + Sized {
     fn my_pipe(mut self) -> impl Iterator<Item = <MyPipe as UniPipe>::Output> {
         let mut pipe = <MyPipe as Default>::default();
-        let mut completed = false;
+
+        let mut pending = VecDeque::new();
+        let mut source_ended = false;
 
         std::iter::from_fn(move || {
-            if completed {
-                return None;
-            }
-
-            while let Some(input) = self.next() {
-                if let Some(output) = pipe.next(Some(input)) {
-                    return Some(output);
-                }
-            }
-
-            completed = true;
-
-            if let Some(output) = pipe.next(None) {
+            if let Some(output) = pending.pop_front() {
                 return Some(output);
             }
 
-            None
+            loop {
+                if source_ended {
+                    return None;
+                }
+
+                let input = self.next();
+
+                if input.is_none() {
+                    source_ended = true;
+                }
+
+                match pipe.next(input) {
+                    Output::None => {}
+                    Output::One(output) => return Some(output),
+                    Output::Many(outputs) => {
+                        let mut outputs = outputs.into_iter();
+
+                        if let Some(output) = outputs.next() {
+                            pending.extend(outputs);
+                            return Some(output);
+                        }
+                    }
+                    Output::End => return None,
+                }
+            }
         })
     }
 }
@@ -55,31 +71,46 @@ pub trait MyPipeUniPipeIteratorTryExt<TError>:
 {
     fn try_my_pipe(mut self) -> impl Iterator<Item = Result<<MyPipe as UniPipe>::Output, TError>> {
         let mut pipe = <MyPipe as Default>::default();
-        let mut completed = false;
+
+        let mut pending = VecDeque::new();
+        let mut source_ended = false;
 
         std::iter::from_fn(move || {
-            if completed {
-                return None;
-            }
-
-            while let Some(input) = self.next() {
-                match input {
-                    Ok(input) => {
-                        if let Some(output) = pipe.next(Some(input)) {
-                            return Some(Ok(output));
-                        }
-                    }
-                    Err(error) => return Some(Err(error)),
-                }
-            }
-
-            completed = true;
-
-            if let Some(output) = pipe.next(None) {
+            if let Some(output) = pending.pop_front() {
                 return Some(Ok(output));
             }
 
-            None
+            loop {
+                if source_ended {
+                    return None;
+                }
+
+                let input = self.next();
+
+                if input.is_none() {
+                    source_ended = true;
+                }
+
+                let input = match input {
+                    Some(Err(error)) => return Some(Err(error)),
+                    Some(Ok(input)) => Some(input),
+                    None => None,
+                };
+
+                match pipe.next(input) {
+                    Output::None => {}
+                    Output::One(output) => return Some(Ok(output)),
+                    Output::Many(outputs) => {
+                        let mut outputs = outputs.into_iter();
+
+                        if let Some(output) = outputs.next() {
+                            pending.extend(outputs);
+                            return Some(Ok(output));
+                        }
+                    }
+                    Output::End => return None,
+                }
+            }
         })
     }
 }
@@ -99,15 +130,29 @@ pub trait MyPipeUniPipeStreamExt:
             let mut pipe = <MyPipe as Default>::default();
 
             let mut source = Box::pin(self);
+            let mut source_ended = false;
 
-            while let Some(input) = source.next().await {
-                if let Some(output) = pipe.next(Some(input)) {
-                    yield output;
+            loop {
+                if source_ended {
+                    break;
                 }
-            }
 
-            if let Some(output) = pipe.next(None) {
-                yield output;
+                let input = source.next().await;
+
+                if input.is_none() {
+                    source_ended = true;
+                }
+
+                match pipe.next(input) {
+                    Output::None => {}
+                    Output::One(output) => yield output,
+                    Output::Many(outputs) => {
+                        for output in outputs {
+                            yield output;
+                        }
+                    }
+                    Output::End => break,
+                }
             }
         })
     }
@@ -130,20 +175,38 @@ pub trait MyPipeUniPipeTryStreamExt<TError>:
             let mut pipe = <MyPipe as Default>::default();
 
             let mut source = Box::pin(self);
+            let mut source_ended = false;
 
-            while let Some(input) = source.next().await {
-                match input {
-                    Ok(input) => {
-                        if let Some(output) = pipe.next(Some(input)) {
+            loop {
+                if source_ended {
+                    break;
+                }
+
+                let input = source.next().await;
+
+                if input.is_none() {
+                    source_ended = true;
+                }
+
+                let input = match input {
+                    Some(Err(error)) => {
+                        yield Err(error);
+                        continue;
+                    }
+                    Some(Ok(input)) => Some(input),
+                    None => None,
+                };
+
+                match pipe.next(input) {
+                    Output::None => {}
+                    Output::One(output) => yield Ok(output),
+                    Output::Many(outputs) => {
+                        for output in outputs {
                             yield Ok(output);
                         }
                     }
-                    Err(error) => yield Err(error),
+                    Output::End => break,
                 }
-            }
-
-            if let Some(output) = pipe.next(None) {
-                yield Ok(output);
             }
         })
     }
