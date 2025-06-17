@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["unipipe", "unipipe-macros"]
+members = ["unipipe", "unipipe-macros", "unipipes"]
 
 [package]
 name = "unipipe-workspace"

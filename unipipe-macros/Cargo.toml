@@ -6,7 +6,7 @@ description = "A simple Rust pipe abstraction that extends to iterator and strea
 keywords = ["pipe", "iterator", "stream"]
 license = "MIT"
 repository = "https://github.com/vilicvane/unipipe"
-documentation = "https://docs.rs/unipipe"
+documentation = "https://docs.rs/unipipe-macros"
 
 [lib]
 proc-macro = true

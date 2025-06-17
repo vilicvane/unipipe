@@ -1,0 +1,16 @@
+[package]
+name = "unipipes"
+version = "0.2.0"
+edition = "2024"
+description = "A small collection of `UniPipe` implementations."
+keywords = ["pipe", "iterator", "stream"]
+license = "MIT"
+repository = "https://github.com/vilicvane/unipipe"
+documentation = "https://docs.rs/unipipes"
+
+[lints.clippy]
+collapsible_else_if = "allow"
+too_many_arguments = "allow"
+
+[dependencies]
+unipipe = { version = "0.2.8", path = "../unipipe" }
