@@ -1,3 +1,4 @@
 {
-  "cSpell.words": ["Deque", "rustup", "unipipe"]
+  "rust-analyzer.check.command": "clippy",
+  "cSpell.words": ["clippy", "Deque", "rustup", "unipipe"]
 }

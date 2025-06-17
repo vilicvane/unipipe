@@ -113,7 +113,7 @@ async fn test_results_2() {
     let inputs = vec![1, 2, 3, 4, 5]
         .into_iter()
         .map(Result::<_, std::fmt::Error>::Ok)
-        .chain(vec![Err(std::fmt::Error::default())])
+        .chain(vec![Err(std::fmt::Error)])
         .collect::<Vec<_>>();
 
     assert_eq!(
@@ -122,7 +122,7 @@ async fn test_results_2() {
             .into_iter()
             .try_sum_five()
             .collect::<Result<Vec<_>, _>>(),
-        Err(std::fmt::Error::default())
+        Err(std::fmt::Error)
     );
 
     assert_eq!(
@@ -130,6 +130,6 @@ async fn test_results_2() {
             .try_sum_five()
             .try_collect::<Vec<_>>()
             .await,
-        Err(std::fmt::Error::default())
+        Err(std::fmt::Error)
     );
 }

@@ -77,7 +77,10 @@ pub fn unipipe(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let visibility = args.visibility.unwrap_or_else(|| parse_quote!(pub));
 
-    let mut output = quote! { #input };
+    let mut output = quote! {
+        #[allow(clippy::new_without_default)]
+        #input
+    };
 
     for extension_type in args.extensions {
         let extension = match extension_type.to_string().as_str() {
@@ -709,17 +712,13 @@ fn method_name_to_pipe_method(method_name: &Ident, struct_name: &Ident) -> Ident
     let method_str = method_name.to_string();
     let struct_snake = struct_name.to_string().to_case(Case::Snake);
 
-    // If method is "new" or "default", use struct name
-    if method_str == "new" || method_str == "default" {
+    if method_str == "new" {
         return format_ident!("{}", struct_snake);
     }
 
-    // If method starts with "new_", replace "new_" with struct name + "_"
-    if method_str.starts_with("new_") {
-        let suffix = &method_str[4..]; // Remove "new_" prefix
+    if let Some(suffix) = method_str.strip_prefix("new_") {
         return format_ident!("{}_{}", struct_snake, suffix);
     }
 
-    // Otherwise, use method name as-is but converted to snake_case
     format_ident!("{}", method_str.to_case(Case::Snake))
 }

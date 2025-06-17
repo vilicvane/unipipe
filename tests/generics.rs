@@ -45,7 +45,6 @@ impl<'a, T: Clone> unipipe::UniPipe for LifetimeTestPipe<'a, T> {
         } else {
             None
         }
-        .into()
     }
 }
 

@@ -6,6 +6,10 @@ members = ["unipipe", "unipipe-macros"]
 name = "unipipe-workspace"
 edition = "2024"
 
+[lints.clippy]
+collapsible_else_if = "allow"
+too_many_arguments = "allow"
+
 [dependencies]
 unipipe = { path = "unipipe" }
 

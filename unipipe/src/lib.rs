@@ -21,10 +21,10 @@ pub enum Output<T> {
 
 impl<T> Output<T> {
     pub fn is_done(&self) -> bool {
-        match self {
-            Self::Done | Self::DoneWithOne(_) | Self::DoneWithMany(_) => true,
-            _ => false,
-        }
+        matches!(
+            self,
+            Self::Done | Self::DoneWithOne(_) | Self::DoneWithMany(_)
+        )
     }
 
     pub fn map<TMapped, TCallback>(self, callback: TCallback) -> Output<TMapped>

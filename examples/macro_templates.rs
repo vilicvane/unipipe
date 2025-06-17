@@ -11,7 +11,7 @@ impl UniPipe for MyPipe {
 
     fn next(&mut self, input: Option<Self::Input>) -> impl Into<Output<Self::Output>> {
         if let Some(input) = input {
-            if input.len() > 0 {
+            if !input.is_empty() {
                 return Some(input.len());
             }
         }

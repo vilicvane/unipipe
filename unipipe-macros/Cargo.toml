@@ -11,6 +11,10 @@ documentation = "https://docs.rs/unipipe"
 [lib]
 proc-macro = true
 
+[lints.clippy]
+collapsible_else_if = "allow"
+too_many_arguments = "allow"
+
 [dependencies]
 convert_case = "0.8"
 proc-macro2 = "1"
