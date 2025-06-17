@@ -1,4 +1,8 @@
-use std::ops::{Add, Rem, Sub};
+use std::{
+    collections::VecDeque,
+    mem,
+    ops::{Add, Rem, Sub},
+};
 
 use unipipe::{Output, UniPipe, unipipe};
 
@@ -8,7 +12,7 @@ pub struct WindowByOffset<TItem, TOffset, TDistance, TOffsetCallback> {
     offset_callback: TOffsetCallback,
     align_window_start: bool,
     ignore_empty_windows: bool,
-    window: Vec<TItem>,
+    window: VecDeque<TItem>,
     window_start: Option<TOffset>,
 }
 
@@ -64,7 +68,7 @@ where
             offset_callback,
             align_window_start,
             ignore_empty_windows,
-            window: Vec::new(),
+            window: VecDeque::new(),
             window_start: None,
         }
     }
@@ -99,7 +103,7 @@ where
                 };
 
                 self.window_start = Some(window_start);
-                self.window.push(item);
+                self.window.push_back(item);
 
                 return Output::Next;
             };
@@ -127,7 +131,7 @@ where
                 //       -----   < output 3
                 //          --*  < pending
 
-                let window = self.window.clone();
+                let window = self.window.iter().cloned().collect::<Vec<_>>();
 
                 if self.ignore_empty_windows && window.is_empty() {
                     // As shown in the example above, the pending window could
@@ -166,7 +170,7 @@ where
                 self.window.drain(..obsolete_end);
             }
 
-            self.window.push(item);
+            self.window.push_back(item);
 
             return Output::Many(outputs);
         }
@@ -176,9 +180,7 @@ where
         if self.window.is_empty() {
             Output::Done
         } else {
-            let window = self.window.clone();
-
-            self.window.clear();
+            let window = mem::take(&mut self.window).into();
 
             let window_start = self.window_start.unwrap();
 
