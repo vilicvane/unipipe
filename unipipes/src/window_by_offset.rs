@@ -4,7 +4,7 @@ use unipipe::{Output, UniPipe, unipipe};
 
 pub struct WindowByOffset<TItem, TOffset, TDistance, TOffsetCallback> {
     window_size: TDistance,
-    step: TDistance,
+    window_step: TDistance,
     offset_callback: TOffsetCallback,
     align_window_start: bool,
     ignore_empty_windows: bool,
@@ -36,10 +36,14 @@ where
         + Copy,
     TDistance: Rem<TDistance, Output = TDistance> + Copy,
 {
-    pub fn new(window_size: TDistance, step: TDistance, offset_callback: TOffsetCallback) -> Self {
+    pub fn new(
+        window_size: TDistance,
+        window_step: TDistance,
+        offset_callback: TOffsetCallback,
+    ) -> Self {
         Self::new_with_options(
             window_size,
-            step,
+            window_step,
             offset_callback,
             WindowByOffsetOptions::default(),
         )
@@ -47,7 +51,7 @@ where
 
     pub fn new_with_options(
         window_size: TDistance,
-        step: TDistance,
+        window_step: TDistance,
         offset_callback: TOffsetCallback,
         WindowByOffsetOptions {
             align_window_start,
@@ -56,7 +60,7 @@ where
     ) -> Self {
         Self {
             window_size,
-            step,
+            window_step,
             offset_callback,
             align_window_start,
             ignore_empty_windows,
@@ -89,7 +93,7 @@ where
 
             let Some(mut window_start) = self.window_start else {
                 let window_start = if self.align_window_start {
-                    item_offset - item_offset % self.step
+                    item_offset - item_offset % self.window_step
                 } else {
                     item_offset
                 };
@@ -132,7 +136,8 @@ where
                     // is not ideal. We would want to calculate the next
                     // window_start and jump there directly.
 
-                    window_start = item_offset - (item_offset - window_end) % self.step + self.step
+                    window_start = item_offset - (item_offset - window_end) % self.window_step
+                        + self.window_step
                         - self.window_size;
 
                     self.window_start = Some(window_start);
@@ -150,7 +155,7 @@ where
                 // Now we move the window one `step` forward, and remove items
                 // before the new window start.
 
-                window_start = window_start + self.step;
+                window_start = window_start + self.window_step;
 
                 self.window_start = Some(window_start);
 
