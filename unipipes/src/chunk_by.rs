@@ -2,10 +2,8 @@ use unipipe::{UniPipe, unipipe};
 
 use crate::ChunkWhile;
 
-type ChunkByChunkWhile<'a, TItem> = ChunkWhile<TItem, Box<dyn Fn(&[TItem], &TItem) -> bool + 'a>>;
-
 pub struct ChunkBy<'a, TItem> {
-    chunk_while: ChunkByChunkWhile<'a, TItem>,
+    chunk_while: ChunkWhile<TItem, Box<dyn Fn(&[TItem], &TItem) -> bool + 'a>>,
 }
 
 #[unipipe(iterator, try_iterator, stream, try_stream)]
@@ -19,6 +17,16 @@ impl<'a, TItem> ChunkBy<'a, TItem> {
                 identifier_callback(&chunk[0]) == identifier_callback(item)
             })),
         }
+    }
+
+    /// Avoid conflict with the `chunk_by` method from the `itertools` crate.
+    pub fn unipipe_chunk_by<TIdentifier>(
+        identifier_callback: impl Fn(&TItem) -> TIdentifier + 'a,
+    ) -> Self
+    where
+        TIdentifier: PartialEq,
+    {
+        Self::new(identifier_callback)
     }
 }
 
