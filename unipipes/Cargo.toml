@@ -9,9 +9,11 @@ repository = "https://github.com/vilicvane/unipipe"
 documentation = "https://docs.rs/unipipes"
 
 [lints.clippy]
+# @inplate {{toml lints.clippy}}
 collapsible_else_if = "allow"
 too_many_arguments = "allow"
 type_complexity = "allow"
+# @end
 
 [dependencies]
 unipipe = { version = "0.2.8", path = "../unipipe" }

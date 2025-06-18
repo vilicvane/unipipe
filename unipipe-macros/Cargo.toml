@@ -12,9 +12,11 @@ documentation = "https://docs.rs/unipipe-macros"
 proc-macro = true
 
 [lints.clippy]
+# @inplate {{toml lints.clippy}}
 collapsible_else_if = "allow"
 too_many_arguments = "allow"
 type_complexity = "allow"
+# @end
 
 [dependencies]
 convert_case = "0.8"
