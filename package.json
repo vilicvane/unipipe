@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "devDependencies": {
-    "inplate": "^0.2.3",
+    "inplate": "^0.2.4",
     "smol-toml": "^1.3.4"
   }
 }
