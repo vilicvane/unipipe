@@ -148,8 +148,8 @@ trait Extension {
         method_name: &Ident,
         method_impl_generics: &ImplGenerics,
         where_clause: Option<&WhereClause>,
-        args: &[&PatType],
-        arg_names: &[&Pat],
+        args: &[PatType],
+        arg_names: &[&Ident],
         struct_with_generics: &proc_macro2::TokenStream,
         struct_path_with_generics: &proc_macro2::TokenStream,
     ) -> proc_macro2::TokenStream;
@@ -216,8 +216,9 @@ trait Extension {
                 .sig
                 .inputs
                 .iter()
-                .filter_map(|arg| match arg {
-                    FnArg::Typed(pat_type) => Some(pat_type),
+                .enumerate()
+                .filter_map(|(index, arg)| match arg {
+                    FnArg::Typed(pat_type) => Some(simplify_arg_pat_type(pat_type, index)),
                     FnArg::Receiver(_) => None,
                 })
                 .collect();
@@ -226,7 +227,13 @@ trait Extension {
                 continue;
             }
 
-            let arg_names: Vec<_> = args.iter().map(|arg| arg.pat.as_ref()).collect();
+            let arg_names: Vec<_> = args
+                .iter()
+                .map(|arg| match &*arg.pat {
+                    Pat::Ident(pat_ident) => &pat_ident.ident,
+                    _ => panic!("Expected PatIdent in simplified args"),
+                })
+                .collect();
 
             let pipe_method_name = format_ident!(
                 "{}{}",
@@ -315,8 +322,8 @@ impl Extension for IteratorExtension {
         method_name: &Ident,
         method_impl_generics: &ImplGenerics,
         where_clause: Option<&WhereClause>,
-        args: &[&PatType],
-        arg_names: &[&Pat],
+        args: &[PatType],
+        arg_names: &[&Ident],
         struct_with_generics: &proc_macro2::TokenStream,
         struct_path_with_generics: &proc_macro2::TokenStream,
     ) -> proc_macro2::TokenStream {
@@ -426,8 +433,8 @@ impl Extension for TryIteratorExtension {
         method_name: &Ident,
         method_impl_generics: &ImplGenerics,
         where_clause: Option<&WhereClause>,
-        args: &[&PatType],
-        arg_names: &[&Pat],
+        args: &[PatType],
+        arg_names: &[&Ident],
         struct_with_generics: &proc_macro2::TokenStream,
         struct_path_with_generics: &proc_macro2::TokenStream,
     ) -> proc_macro2::TokenStream {
@@ -543,8 +550,8 @@ impl Extension for StreamExtension {
         method_name: &Ident,
         method_impl_generics: &ImplGenerics,
         where_clause: Option<&WhereClause>,
-        args: &[&PatType],
-        arg_names: &[&Pat],
+        args: &[PatType],
+        arg_names: &[&Ident],
         struct_with_generics: &proc_macro2::TokenStream,
         struct_path_with_generics: &proc_macro2::TokenStream,
     ) -> proc_macro2::TokenStream {
@@ -647,8 +654,8 @@ impl Extension for TryStreamExtension {
         method_name: &Ident,
         method_impl_generics: &ImplGenerics,
         where_clause: Option<&WhereClause>,
-        args: &[&PatType],
-        arg_names: &[&Pat],
+        args: &[PatType],
+        arg_names: &[&Ident],
         struct_with_generics: &proc_macro2::TokenStream,
         struct_path_with_generics: &proc_macro2::TokenStream,
     ) -> proc_macro2::TokenStream {
@@ -721,4 +728,18 @@ fn method_name_to_pipe_method(method_name: &Ident, struct_name: &Ident) -> Ident
     }
 
     format_ident!("{}", method_str.to_case(Case::Snake))
+}
+
+fn simplify_arg_pat_type(pat_type: &PatType, index: usize) -> PatType {
+    let mut simplified = pat_type.clone();
+
+    simplified.pat = Box::new(Pat::Ident(syn::PatIdent {
+        attrs: vec![],
+        by_ref: None,
+        mutability: None,
+        ident: format_ident!("arg_{}", index),
+        subpat: None,
+    }));
+
+    simplified
 }

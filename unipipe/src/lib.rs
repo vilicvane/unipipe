@@ -27,9 +27,9 @@ impl<T> Output<T> {
         )
     }
 
-    pub fn map<TMapped, TCallback>(self, callback: TCallback) -> Output<TMapped>
+    pub fn map<TMapped, TCallback>(self, mut callback: TCallback) -> Output<TMapped>
     where
-        TCallback: Fn(T) -> TMapped,
+        TCallback: FnMut(T) -> TMapped,
     {
         match self {
             Self::Next => Output::<TMapped>::Next,
