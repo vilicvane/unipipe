@@ -101,6 +101,23 @@ impl<T> Output<T> {
     }
 }
 
+impl<T> IntoIterator for Output<T> {
+    type Item = T;
+    type IntoIter = std::vec::IntoIter<T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        match self {
+            Self::Next => vec![],
+            Self::One(value) => vec![value],
+            Self::Many(values) => values,
+            Self::Done => vec![],
+            Self::DoneWithOne(value) => vec![value],
+            Self::DoneWithMany(values) => values,
+        }
+        .into_iter()
+    }
+}
+
 impl<T> From<Option<T>> for Output<T> {
     fn from(value: Option<T>) -> Self {
         match value {
