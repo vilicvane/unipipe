@@ -1,4 +1,6 @@
+#[doc(hidden)]
 pub use async_stream::stream;
+#[doc(hidden)]
 pub use futures::{Stream, StreamExt};
 
 pub use unipipe_macros::*;
