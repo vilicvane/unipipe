@@ -755,11 +755,16 @@ fn method_name_to_pipe_method(method_name: &Ident, struct_name: &Ident) -> Ident
 fn simplify_arg_pat_type(pat_type: &PatType, index: usize) -> PatType {
     let mut simplified = pat_type.clone();
 
+    let ident = match &*pat_type.pat {
+        Pat::Ident(pat_ident) => pat_ident.ident.clone(),
+        _ => format_ident!("arg_{}", index),
+    };
+
     simplified.pat = Box::new(Pat::Ident(syn::PatIdent {
         attrs: vec![],
         by_ref: None,
         mutability: None,
-        ident: format_ident!("arg_{}", index),
+        ident,
         subpat: None,
     }));
 
