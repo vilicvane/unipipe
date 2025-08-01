@@ -4,7 +4,7 @@ use unipipe::{UniPipe, unipipe};
 
 pub struct ChunkWhile<TItem, TPredicate>
 where
-    TPredicate: FnMut(&[TItem], &TItem) -> bool,
+    TPredicate: FnMut(&mut [TItem], &TItem) -> bool,
 {
     chunk: Vec<TItem>,
     predicate: TPredicate,
@@ -13,7 +13,7 @@ where
 #[unipipe(iterator, try_iterator, stream, try_stream)]
 impl<TItem, TPredicate> ChunkWhile<TItem, TPredicate>
 where
-    TPredicate: FnMut(&[TItem], &TItem) -> bool,
+    TPredicate: FnMut(&mut [TItem], &TItem) -> bool,
 {
     pub fn new(predicate: TPredicate) -> Self {
         Self {
@@ -25,7 +25,7 @@ where
 
 impl<TItem, TPredicate> UniPipe for ChunkWhile<TItem, TPredicate>
 where
-    TPredicate: FnMut(&[TItem], &TItem) -> bool,
+    TPredicate: FnMut(&mut [TItem], &TItem) -> bool,
 {
     type Input = TItem;
     type Output = Vec<TItem>;
@@ -33,7 +33,7 @@ where
     #[allow(refining_impl_trait)]
     fn next(&mut self, input: Option<Self::Input>) -> Option<Self::Output> {
         if let Some(input) = input {
-            if self.chunk.is_empty() || (self.predicate)(&self.chunk, &input) {
+            if self.chunk.is_empty() || (self.predicate)(&mut self.chunk, &input) {
                 self.chunk.push(input);
 
                 None

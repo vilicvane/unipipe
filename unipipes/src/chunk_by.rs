@@ -3,7 +3,7 @@ use unipipe::{UniPipe, unipipe};
 use crate::ChunkWhile;
 
 pub struct ChunkBy<'a, TItem> {
-    chunk_while: ChunkWhile<TItem, Box<dyn FnMut(&[TItem], &TItem) -> bool + 'a>>,
+    chunk_while: ChunkWhile<TItem, Box<dyn FnMut(&mut [TItem], &TItem) -> bool + 'a>>,
 }
 
 #[unipipe(iterator, try_iterator, stream, try_stream)]

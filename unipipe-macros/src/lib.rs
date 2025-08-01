@@ -161,19 +161,20 @@ trait Extension {
         impl_struct_impl_generics: &Generics,
         constructor_methods: &[&ImplItemFn],
     ) -> proc_macro2::TokenStream {
+        let struct_specific_generics;
+
         let trait_name = format_ident!("{}UniPipe{}Ext", struct_name, Self::get_name());
 
         let where_clause = impl_struct_impl_generics.where_clause.as_ref();
 
-        let (struct_with_generics, struct_path_with_generics) =
-            if impl_struct_impl_generics.params.is_empty() {
-                (quote! { #struct_name }, quote! { #struct_name })
-            } else {
-                (
-                    quote! { #struct_name #impl_struct_generics },
-                    quote! { #struct_name::#impl_struct_generics },
-                )
-            };
+        let (struct_with_generics, struct_path_with_generics) = if impl_struct_generics.is_none() {
+            (quote! { #struct_name }, quote! { #struct_name })
+        } else {
+            (
+                quote! { #struct_name #impl_struct_generics },
+                quote! { #struct_name::#impl_struct_generics },
+            )
+        };
 
         let trait_generics = {
             let mut generics = impl_struct_impl_generics.clone();
