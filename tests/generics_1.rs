@@ -26,7 +26,7 @@ impl<TWeightedMovingAverage: WeightedMovingAverage> UniPipe
     }
 }
 
-#[unipipe(iterator, try_iterator, stream, try_stream)]
+#[unipipe("ExponentialMovingAverage", iterator, try_iterator, stream, try_stream)]
 impl SideTradingPriceDifference<ExponentialMovingAverage> {
     pub fn exponential_moving_average(_volume_window: f64) -> Self {
         Self {
@@ -35,7 +35,7 @@ impl SideTradingPriceDifference<ExponentialMovingAverage> {
     }
 }
 
-#[unipipe(iterator, try_iterator, stream, try_stream)]
+#[unipipe("SimpleMovingAverage", iterator, try_iterator, stream, try_stream)]
 impl SideTradingPriceDifference<SimpleMovingAverage> {
     pub fn simple_moving_average(_volume_window: f64) -> Self {
         Self {

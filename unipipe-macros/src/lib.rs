@@ -3,8 +3,8 @@ use proc_macro::TokenStream;
 use quote::{format_ident, quote};
 use syn::{
     AngleBracketedGenericArguments, FnArg, GenericParam, Generics, Ident, ImplGenerics, ImplItem,
-    ImplItemFn, ItemImpl, Pat, PatType, PathArguments, Token, Type, TypeGenerics, Visibility,
-    WhereClause, WherePredicate,
+    ImplItemFn, ItemImpl, LitStr, Pat, PatType, PathArguments, Token, Type, TypeGenerics,
+    Visibility, WhereClause, WherePredicate,
     parse::{Parse, ParseStream},
     parse_macro_input, parse_quote,
     punctuated::Punctuated,
@@ -12,12 +12,25 @@ use syn::{
 };
 
 struct UniPipeArgs {
+    name: Option<String>,
     visibility: Option<Visibility>,
     extensions: Vec<Ident>,
 }
 
 impl Parse for UniPipeArgs {
     fn parse(input: ParseStream) -> syn::Result<Self> {
+        let name = if input.peek(LitStr) {
+            let string_literal: LitStr = input.parse()?;
+
+            if input.peek(Token![,]) {
+                input.parse::<Token![,]>()?;
+            }
+
+            Some(string_literal.value())
+        } else {
+            None
+        };
+
         let visibility = if input.peek(Token![pub]) || input.peek(Token![crate]) {
             Some(input.parse()?)
         } else {
@@ -29,6 +42,7 @@ impl Parse for UniPipeArgs {
             .collect();
 
         Ok(UniPipeArgs {
+            name,
             visibility,
             extensions,
         })
@@ -85,6 +99,7 @@ pub fn unipipe(attr: TokenStream, item: TokenStream) -> TokenStream {
     for extension_type in args.extensions {
         let extension = match extension_type.to_string().as_str() {
             "iterator" => IteratorExtension::generate(
+                args.name.as_deref(),
                 &visibility,
                 struct_name,
                 impl_struct_generics,
@@ -92,6 +107,7 @@ pub fn unipipe(attr: TokenStream, item: TokenStream) -> TokenStream {
                 &constructor_methods,
             ),
             "try_iterator" => TryIteratorExtension::generate(
+                args.name.as_deref(),
                 &visibility,
                 struct_name,
                 impl_struct_generics,
@@ -99,6 +115,7 @@ pub fn unipipe(attr: TokenStream, item: TokenStream) -> TokenStream {
                 &constructor_methods,
             ),
             "stream" => StreamExtension::generate(
+                args.name.as_deref(),
                 &visibility,
                 struct_name,
                 impl_struct_generics,
@@ -106,13 +123,14 @@ pub fn unipipe(attr: TokenStream, item: TokenStream) -> TokenStream {
                 &constructor_methods,
             ),
             "try_stream" => TryStreamExtension::generate(
+                args.name.as_deref(),
                 &visibility,
                 struct_name,
                 impl_struct_generics,
                 impl_struct_impl_generics,
                 &constructor_methods,
             ),
-            _ => panic!("Unknown extension type: {}", extension_type),
+            _ => panic!("Unknown extension type: {extension_type}"),
         };
 
         output.extend(extension);
@@ -155,15 +173,18 @@ trait Extension {
     ) -> proc_macro2::TokenStream;
 
     fn generate(
+        specified_name: Option<&str>,
         visibility: &Visibility,
         struct_name: &Ident,
         impl_struct_generics: Option<&AngleBracketedGenericArguments>,
         impl_struct_impl_generics: &Generics,
         constructor_methods: &[&ImplItemFn],
     ) -> proc_macro2::TokenStream {
-        let struct_specific_generics;
-
-        let trait_name = format_ident!("{}UniPipe{}Ext", struct_name, Self::get_name());
+        let trait_name = format_ident!(
+            "{}UniPipe{}Ext",
+            specified_name.unwrap_or(struct_name.to_string().as_str()),
+            Self::get_name()
+        );
 
         let where_clause = impl_struct_impl_generics.where_clause.as_ref();
 
