@@ -10,10 +10,10 @@ impl UniPipe for MyPipe {
     type Output = usize;
 
     fn next(&mut self, input: Option<Self::Input>) -> impl Into<Output<Self::Output>> {
-        if let Some(input) = input {
-            if !input.is_empty() {
-                return Some(input.len());
-            }
+        if let Some(input) = input
+            && !input.is_empty()
+        {
+            return Some(input.len());
         }
 
         None

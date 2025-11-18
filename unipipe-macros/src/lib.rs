@@ -78,10 +78,10 @@ pub fn unipipe(attr: TokenStream, item: TokenStream) -> TokenStream {
     let mut constructor_methods = Vec::new();
 
     for item in &input.items {
-        if let ImplItem::Fn(method) = item {
-            if method.vis == Visibility::Inherited || matches!(method.vis, Visibility::Public(_)) {
-                constructor_methods.push(method);
-            }
+        if let ImplItem::Fn(method) = item
+            && (method.vis == Visibility::Inherited || matches!(method.vis, Visibility::Public(_)))
+        {
+            constructor_methods.push(method);
         }
     }
 
