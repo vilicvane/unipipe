@@ -128,7 +128,7 @@ impl UniPipe for AdvancedOutput2 {
     type Input = usize;
     type Output = usize;
 
-    fn next(&mut self, input: Option<Self::Input>) -> impl Into<Output<Self::Output>> {
+    fn next(&mut self, input: Option<Self::Input>) -> Output<Self::Output> {
         if let Some(input) = input {
             if input > self.limit {
                 Output::Done

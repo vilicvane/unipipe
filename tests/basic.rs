@@ -1,5 +1,5 @@
 use futures::{StreamExt as _, TryStreamExt as _};
-use unipipe::{UniPipe, unipipe};
+use unipipe::{Output, UniPipe, unipipe};
 
 struct SumFive {
     sum: u32,
@@ -10,7 +10,7 @@ impl UniPipe for SumFive {
     type Output = u32;
 
     #[allow(refining_impl_trait)]
-    fn next(&mut self, input: Option<Self::Input>) -> Option<Self::Output> {
+    fn next(&mut self, input: Option<Self::Input>) -> Output<Self::Output> {
         if let Some(input) = input {
             let sum = self.sum + input;
 
@@ -23,9 +23,9 @@ impl UniPipe for SumFive {
             }
         } else {
             let sum = self.sum;
-
             if sum > 0 { Some(sum) } else { None }
         }
+        .into()
     }
 }
 

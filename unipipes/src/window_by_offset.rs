@@ -90,7 +90,7 @@ where
     type Input = TItem;
     type Output = (Vec<TItem>, (TOffset, TOffset));
 
-    fn next(&mut self, input: Option<Self::Input>) -> impl Into<Output<Self::Output>> {
+    fn next(&mut self, input: Option<Self::Input>) -> Output<Self::Output> {
         if let Some(item) = input {
             let item_offset = (self.offset_callback)(&item);
 

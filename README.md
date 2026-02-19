@@ -14,7 +14,7 @@ cargo add unipipe
 ## Usage
 
 ```rust
-use unipipe::{UniPipe, unipipe};
+use unipipe::{Output, UniPipe, unipipe};
 
 pub struct MyPipe {
     state: u32,
@@ -24,7 +24,7 @@ impl UniPipe for MyPipe {
     type Input = u32;
     type Output = u32;
 
-    fn next(&mut self, input: Option<Self::Input>) -> Option<Self::Output> {
+    fn next(&mut self, input: Option<Self::Input>) -> Output<Self::Output> {
         if let Some(input) = input {
             self.state += input;
             Some(self.state)
@@ -33,6 +33,7 @@ impl UniPipe for MyPipe {
             // use `Output::Done` instead.
             None
         }
+        .into()
     }
 }
 

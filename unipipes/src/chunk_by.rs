@@ -34,7 +34,7 @@ impl<'a, TItem> UniPipe for ChunkBy<'a, TItem> {
     type Input = TItem;
     type Output = Vec<TItem>;
 
-    fn next(&mut self, input: Option<Self::Input>) -> impl Into<Output<Self::Output>> {
+    fn next(&mut self, input: Option<Self::Input>) -> Output<Self::Output> {
         self.chunk_while.next(input)
     }
 }

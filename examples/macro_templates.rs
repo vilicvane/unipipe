@@ -9,14 +9,15 @@ impl UniPipe for MyPipe {
     type Input = String;
     type Output = usize;
 
-    fn next(&mut self, input: Option<Self::Input>) -> impl Into<Output<Self::Output>> {
+    fn next(&mut self, input: Option<Self::Input>) -> Output<Self::Output> {
         if let Some(input) = input
             && !input.is_empty()
         {
-            return Some(input.len());
+            Some(input.len())
+        } else {
+            None
         }
-
-        None
+        .into()
     }
 }
 
@@ -43,7 +44,7 @@ pub trait MyPipeUniPipeIteratorExt: Iterator<Item = <MyPipe as UniPipe>::Input> 
                     done = true;
                 }
 
-                let next_output: Output<_> = pipe.next(input).into();
+                let next_output: Output<_> = pipe.next(input);
 
                 if next_output.is_done() {
                     done = true;
@@ -104,7 +105,7 @@ pub trait MyPipeUniPipeIteratorTryExt<TError>:
                     None => None,
                 };
 
-                let next_output: Output<_> = pipe.next(input).into();
+                let next_output: Output<_> = pipe.next(input);
 
                 if next_output.is_done() {
                     done = true;
@@ -155,7 +156,7 @@ pub trait MyPipeUniPipeStreamExt:
                     done = true;
                 }
 
-                let next_output: Output<_> = pipe.next(input).into();
+                let next_output: Output<_> = pipe.next(input);
 
                 if next_output.is_done() {
                     done = true;
@@ -214,7 +215,7 @@ pub trait MyPipeUniPipeTryStreamExt<TError>:
                     None => None,
                 };
 
-                let next_output: Output<_> = pipe.next(input).into();
+                let next_output: Output<_> = pipe.next(input);
 
                 if next_output.is_done() {
                     done = true;

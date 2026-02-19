@@ -10,7 +10,7 @@ impl<T: Clone> unipipe::UniPipe for TestPipe<T> {
     type Output = T;
 
     #[allow(refining_impl_trait)]
-    fn next(&mut self, input: Option<Self::Input>) -> Option<Self::Output> {
+    fn next(&mut self, input: Option<Self::Input>) -> Output<Self::Output> {
         if let Some(input) = input {
             let output = self.value.clone();
             self.value = Some(input);
@@ -18,6 +18,7 @@ impl<T: Clone> unipipe::UniPipe for TestPipe<T> {
         } else {
             self.value.take()
         }
+        .into()
     }
 }
 
@@ -38,13 +39,14 @@ impl<'a, T: Clone> unipipe::UniPipe for LifetimeTestPipe<'a, T> {
     type Output = usize;
 
     #[allow(refining_impl_trait)]
-    fn next(&mut self, input: Option<Self::Input>) -> Option<Self::Output> {
+    fn next(&mut self, input: Option<Self::Input>) -> Output<Self::Output> {
         if input.is_some() {
             self.count += 1;
             Some(self.count)
         } else {
             None
         }
+        .into()
     }
 }
 
@@ -74,7 +76,7 @@ impl<'a, T> unipipe::UniPipe for LifetimeTestPipe2<'a, T> {
     type Input = T;
     type Output = String;
 
-    fn next(&mut self, input: Option<Self::Input>) -> impl Into<Output<Self::Output>> {
+    fn next(&mut self, input: Option<Self::Input>) -> Output<Self::Output> {
         match input {
             Some(value) => {
                 let transformed = format!("{}: {}", self.prefix, (self.transformer)(&value));
@@ -97,6 +99,7 @@ impl<'a, T> unipipe::UniPipe for LifetimeTestPipe2<'a, T> {
                 }
             }
         }
+        .into()
     }
 }
 

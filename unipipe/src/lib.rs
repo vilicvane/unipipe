@@ -9,7 +9,7 @@ pub trait UniPipe {
     type Input;
     type Output;
 
-    fn next(&mut self, input: Option<Self::Input>) -> impl Into<Output<Self::Output>>;
+    fn next(&mut self, input: Option<Self::Input>) -> Output<Self::Output>;
 }
 
 pub enum Output<T> {
@@ -55,7 +55,7 @@ impl<T> Output<T> {
 
         let output = match self {
             Self::Next => Output::<TPipeOutput>::Next,
-            Self::One(value) | Self::DoneWithOne(value) => pipe.next(Some(value)).into(),
+            Self::One(value) | Self::DoneWithOne(value) => pipe.next(Some(value)),
             Self::Many(values) | Self::DoneWithMany(values) => {
                 let mut aggregated_outputs = Vec::new();
 
@@ -66,7 +66,7 @@ impl<T> Output<T> {
                 }
 
                 for value in inputs {
-                    let next_output: Output<_> = pipe.next(value).into();
+                    let next_output: Output<_> = pipe.next(value);
 
                     let done = next_output.is_done();
 
@@ -87,7 +87,7 @@ impl<T> Output<T> {
 
                 Output::<TPipeOutput>::Many(aggregated_outputs)
             }
-            Self::Done => pipe.next(None).into(),
+            Self::Done => pipe.next(None),
         };
 
         if upper_done { output.done() } else { output }

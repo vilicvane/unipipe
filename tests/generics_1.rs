@@ -1,4 +1,4 @@
-use unipipe::{UniPipe, unipipe};
+use unipipe::{Output, UniPipe, unipipe};
 
 trait WeightedMovingAverage {}
 
@@ -21,7 +21,7 @@ impl<TWeightedMovingAverage: WeightedMovingAverage> UniPipe
     type Output = f64;
 
     #[allow(refining_impl_trait)]
-    fn next(&mut self, _input: Option<Self::Input>) -> Option<Self::Output> {
+    fn next(&mut self, _input: Option<Self::Input>) -> Output<Self::Output> {
         unimplemented!()
     }
 }
