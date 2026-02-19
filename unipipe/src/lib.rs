@@ -47,7 +47,29 @@ impl<T> Output<T> {
         }
     }
 
-    pub fn pipe<TPipe, TPipeOutput: std::fmt::Debug>(self, pipe: &mut TPipe) -> Output<TPipeOutput>
+    pub fn filter_map<TMapped, TCallback>(self, mut callback: TCallback) -> Output<TMapped>
+    where
+        TCallback: FnMut(T) -> Option<TMapped>,
+    {
+        match self {
+            Self::Next => Output::<TMapped>::Next,
+            Self::One(value) => {
+                callback(value).map_or(Output::<TMapped>::Next, Output::<TMapped>::One)
+            }
+            Self::Many(values) => {
+                Output::<TMapped>::Many(values.into_iter().filter_map(callback).collect())
+            }
+            Self::Done => Output::<TMapped>::Done,
+            Self::DoneWithOne(value) => {
+                callback(value).map_or(Output::<TMapped>::Done, Output::<TMapped>::DoneWithOne)
+            }
+            Self::DoneWithMany(values) => {
+                Output::<TMapped>::DoneWithMany(values.into_iter().filter_map(callback).collect())
+            }
+        }
+    }
+
+    pub fn pipe<TPipe, TPipeOutput>(self, pipe: &mut TPipe) -> Output<TPipeOutput>
     where
         TPipe: UniPipe<Input = T, Output = TPipeOutput>,
     {
