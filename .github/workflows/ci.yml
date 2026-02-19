@@ -11,11 +11,18 @@ jobs:
   build_and_test:
     name: Rust project - latest
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        toolchain:
+          - stable
+          - beta
+          - nightly
     steps:
       - uses: actions/checkout@v4
       - run: npm install
       - run: npx inplate --assert
-      - run: rustup update && rustup default
+      - run: rustup update ${{ matrix.toolchain }} && rustup default ${{ matrix.toolchain }}
       - run: cargo build --verbose
       - run: cargo test --verbose
       - run: cargo clippy --workspace --all-targets --verbose
+        if: matrix.toolchain == 'stable'
