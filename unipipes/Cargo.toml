@@ -1,6 +1,6 @@
 [package]
 name = "unipipes"
-version = "0.2.3"
+version = "0.3.0"
 edition = "2024"
 description = "A small collection of `UniPipe` implementations."
 keywords = ["pipe", "iterator", "stream"]
@@ -16,4 +16,4 @@ type_complexity = "allow"
 # @end
 
 [dependencies]
-unipipe = { version = "0.2.11", path = "../unipipe" }
+unipipe = { version = "0.3.0", path = "../unipipe" }
