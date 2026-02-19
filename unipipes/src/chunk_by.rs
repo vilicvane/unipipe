@@ -1,4 +1,4 @@
-use unipipe::{UniPipe, unipipe};
+use unipipe::{Output, UniPipe, unipipe};
 
 use crate::ChunkWhile;
 
@@ -34,8 +34,7 @@ impl<'a, TItem> UniPipe for ChunkBy<'a, TItem> {
     type Input = TItem;
     type Output = Vec<TItem>;
 
-    #[allow(refining_impl_trait)]
-    fn next(&mut self, input: Option<Self::Input>) -> Option<Self::Output> {
+    fn next(&mut self, input: Option<Self::Input>) -> impl Into<Output<Self::Output>> {
         self.chunk_while.next(input)
     }
 }

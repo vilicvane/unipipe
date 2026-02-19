@@ -1,6 +1,6 @@
 use std::mem;
 
-use unipipe::{UniPipe, unipipe};
+use unipipe::{Output, UniPipe, unipipe};
 
 pub struct ChunkWhile<TItem, TPredicate>
 where
@@ -30,8 +30,7 @@ where
     type Input = TItem;
     type Output = Vec<TItem>;
 
-    #[allow(refining_impl_trait)]
-    fn next(&mut self, input: Option<Self::Input>) -> Option<Self::Output> {
+    fn next(&mut self, input: Option<Self::Input>) -> impl Into<Output<Self::Output>> {
         if let Some(input) = input {
             if self.chunk.is_empty() || (self.predicate)(&mut self.chunk, &input) {
                 self.chunk.push(input);
