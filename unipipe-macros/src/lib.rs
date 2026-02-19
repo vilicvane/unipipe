@@ -1,6 +1,6 @@
 use convert_case::{Case, Casing};
 use proc_macro::TokenStream;
-use quote::{format_ident, quote};
+use quote::{ToTokens, format_ident, quote};
 use syn::{
     AngleBracketedGenericArguments, FnArg, GenericParam, Generics, Ident, ImplGenerics, ImplItem,
     ImplItemFn, ItemImpl, LitStr, Pat, PatType, PathArguments, Token, Type, TypeGenerics,
@@ -151,14 +151,21 @@ trait Extension {
     fn generate_trait(
         visibility: &Visibility,
         trait_name: &Ident,
-        trait_generics: &ImplGenerics,
+        trait_generics: proc_macro2::TokenStream,
         trait_ty_generics: &TypeGenerics,
-        struct_with_generics: &proc_macro2::TokenStream,
         struct_path_with_generics: &proc_macro2::TokenStream,
         where_clause: Option<&WhereClause>,
         where_clause_predicates: Option<&Punctuated<WherePredicate, Comma>>,
         impl_generics: &ImplGenerics,
+        method_signatures: Vec<proc_macro2::TokenStream>,
         methods: Vec<proc_macro2::TokenStream>,
+    ) -> proc_macro2::TokenStream;
+
+    fn generate_trait_method_signature(
+        pipe_method_name: &Ident,
+        method_impl_generics: &ImplGenerics,
+        where_clause: Option<&WhereClause>,
+        args: &[PatType],
     ) -> proc_macro2::TokenStream;
 
     fn generate_trait_method(
@@ -227,11 +234,25 @@ trait Extension {
 
         let (trait_generics, trait_ty_generics, _) = trait_generics.split_for_impl();
 
+        // We need to pass the self type down to pick up its implied bounds in the extension trait
+        // and impl. Using a default value will avoid needing to repeat it in every trait impl.
+        //
+        // Unfortunately, this default value isn't retained once the generics go through
+        // `split_for_impl`, and the trait generics setup above may be incomplete. To work around
+        // this, we thus push this new generic parameter where it's needed (only at the end of the
+        // *trait*'s generics list), but it's slightly inefficient.
+        let mut trait_generics: Generics = parse_quote! { #trait_generics };
+        let self_ty_param: GenericParam = parse_quote! {
+            _SELF: ::unipipe::UniPipe = #struct_with_generics
+        };
+        trait_generics.params.push(self_ty_param);
+
         let (impl_generics, _, _) = impl_for_generics.split_for_impl();
 
         let where_clause_predicates = where_clause.map(|clause| &clause.predicates);
 
-        let mut trait_methods = Vec::new();
+        let mut trait_method_signatures = Vec::new();
+        let mut trait_method_bodies = Vec::new();
 
         for method in constructor_methods {
             let args: Vec<_> = method
@@ -265,7 +286,13 @@ trait Extension {
 
             let (method_impl_generics, _, where_clause) = method.sig.generics.split_for_impl();
 
-            trait_methods.push(Self::generate_trait_method(
+            trait_method_signatures.push(Self::generate_trait_method_signature(
+                &pipe_method_name,
+                &method_impl_generics,
+                where_clause,
+                &args,
+            ));
+            trait_method_bodies.push(Self::generate_trait_method(
                 &pipe_method_name,
                 &method.sig.ident,
                 &method_impl_generics,
@@ -280,14 +307,14 @@ trait Extension {
         Self::generate_trait(
             visibility,
             &trait_name,
-            &trait_generics,
+            trait_generics.to_token_stream(),
             &trait_ty_generics,
-            &struct_with_generics,
             &struct_path_with_generics,
             where_clause,
             where_clause_predicates,
             &impl_generics,
-            trait_methods,
+            trait_method_signatures,
+            trait_method_bodies,
         )
     }
 }
@@ -314,28 +341,45 @@ impl Extension for IteratorExtension {
     fn generate_trait(
         visibility: &Visibility,
         trait_name: &Ident,
-        trait_generics: &ImplGenerics,
+        trait_generics: proc_macro2::TokenStream,
         trait_ty_generics: &TypeGenerics,
-        struct_with_generics: &proc_macro2::TokenStream,
         struct_path_with_generics: &proc_macro2::TokenStream,
         where_clause: Option<&WhereClause>,
         where_clause_predicates: Option<&Punctuated<WherePredicate, Comma>>,
         impl_generics: &ImplGenerics,
-        methods: Vec<proc_macro2::TokenStream>,
+        method_signatures: Vec<proc_macro2::TokenStream>,
+        method_bodies: Vec<proc_macro2::TokenStream>,
     ) -> proc_macro2::TokenStream {
         quote! {
             #visibility trait #trait_name #trait_generics:
-                Iterator<Item = <#struct_with_generics as ::unipipe::UniPipe>::Input> + Sized
+                Iterator<Item = <_SELF as ::unipipe::UniPipe>::Input> + Sized
             #where_clause
             {
-                #(#methods)*
+                #(#method_signatures)*
             }
 
             impl #impl_generics #trait_name #trait_ty_generics for TIterator
             where
                 TIterator: Iterator<Item = <#struct_path_with_generics as ::unipipe::UniPipe>::Input>,
                 #where_clause_predicates
-            {}
+            {
+                #(#method_bodies)*
+            }
+        }
+    }
+
+    fn generate_trait_method_signature(
+        pipe_method_name: &Ident,
+        method_impl_generics: &ImplGenerics,
+        where_clause: Option<&WhereClause>,
+        args: &[PatType],
+    ) -> proc_macro2::TokenStream {
+        quote! {
+            fn #pipe_method_name #method_impl_generics(
+                self,
+                #(#args),*
+            ) -> impl Iterator<Item = <_SELF as ::unipipe::UniPipe>::Output>
+            #where_clause;
         }
     }
 
@@ -425,28 +469,45 @@ impl Extension for TryIteratorExtension {
     fn generate_trait(
         visibility: &Visibility,
         trait_name: &Ident,
-        trait_generics: &ImplGenerics,
+        trait_generics: proc_macro2::TokenStream,
         trait_ty_generics: &TypeGenerics,
-        struct_with_generics: &proc_macro2::TokenStream,
         struct_path_with_generics: &proc_macro2::TokenStream,
         where_clause: Option<&WhereClause>,
         where_clause_predicates: Option<&Punctuated<WherePredicate, Comma>>,
         impl_generics: &ImplGenerics,
-        methods: Vec<proc_macro2::TokenStream>,
+        method_signatures: Vec<proc_macro2::TokenStream>,
+        method_bodies: Vec<proc_macro2::TokenStream>,
     ) -> proc_macro2::TokenStream {
         quote! {
             #visibility trait #trait_name #trait_generics:
-                Iterator<Item = Result<<#struct_with_generics as ::unipipe::UniPipe>::Input, TError>> + Sized
+                Iterator<Item = Result<<_SELF as ::unipipe::UniPipe>::Input, TError>> + Sized
             #where_clause
             {
-                #(#methods)*
+                #(#method_signatures)*
             }
 
             impl #impl_generics #trait_name #trait_ty_generics for TIterator
             where
                 TIterator: Iterator<Item = Result<<#struct_path_with_generics as ::unipipe::UniPipe>::Input, TError>>,
                 #where_clause_predicates
-            {}
+            {
+                #(#method_bodies)*
+            }
+        }
+    }
+
+    fn generate_trait_method_signature(
+        pipe_method_name: &Ident,
+        method_impl_generics: &ImplGenerics,
+        where_clause: Option<&WhereClause>,
+        args: &[PatType],
+    ) -> proc_macro2::TokenStream {
+        quote! {
+            fn #pipe_method_name #method_impl_generics(
+                self,
+                #(#args),*
+            ) -> impl Iterator<Item = Result<<_SELF as ::unipipe::UniPipe>::Output, TError>>
+            #where_clause;
         }
     }
 
@@ -542,28 +603,45 @@ impl Extension for StreamExtension {
     fn generate_trait(
         visibility: &Visibility,
         trait_name: &Ident,
-        trait_generics: &ImplGenerics,
+        trait_generics: proc_macro2::TokenStream,
         trait_ty_generics: &TypeGenerics,
-        struct_with_generics: &proc_macro2::TokenStream,
         struct_path_with_generics: &proc_macro2::TokenStream,
         where_clause: Option<&WhereClause>,
         where_clause_predicates: Option<&Punctuated<WherePredicate, Comma>>,
         impl_generics: &ImplGenerics,
-        methods: Vec<proc_macro2::TokenStream>,
+        method_signatures: Vec<proc_macro2::TokenStream>,
+        method_bodies: Vec<proc_macro2::TokenStream>,
     ) -> proc_macro2::TokenStream {
         quote! {
             #visibility trait #trait_name #trait_generics:
-                ::unipipe::Stream<Item = <#struct_with_generics as ::unipipe::UniPipe>::Input> + Sized
+                ::unipipe::Stream<Item = <_SELF as ::unipipe::UniPipe>::Input> + Sized
             #where_clause
             {
-                #(#methods)*
+                #(#method_signatures)*
             }
 
             impl #impl_generics #trait_name #trait_ty_generics for TStream
             where
                 TStream: ::unipipe::Stream<Item = <#struct_path_with_generics as ::unipipe::UniPipe>::Input>,
                 #where_clause_predicates
-            {}
+            {
+                #(#method_bodies)*
+            }
+        }
+    }
+
+    fn generate_trait_method_signature(
+        pipe_method_name: &Ident,
+        method_impl_generics: &ImplGenerics,
+        where_clause: Option<&WhereClause>,
+        args: &[PatType],
+    ) -> proc_macro2::TokenStream {
+        quote! {
+            fn #pipe_method_name #method_impl_generics(
+                self,
+                #(#args),*
+            ) -> impl ::unipipe::Stream<Item = <_SELF as ::unipipe::UniPipe>::Output> + Unpin
+            #where_clause;
         }
     }
 
@@ -646,28 +724,45 @@ impl Extension for TryStreamExtension {
     fn generate_trait(
         visibility: &Visibility,
         trait_name: &Ident,
-        trait_generics: &ImplGenerics,
+        trait_generics: proc_macro2::TokenStream,
         trait_ty_generics: &TypeGenerics,
-        struct_with_generics: &proc_macro2::TokenStream,
         struct_path_with_generics: &proc_macro2::TokenStream,
         where_clause: Option<&WhereClause>,
         where_clause_predicates: Option<&Punctuated<WherePredicate, Comma>>,
         impl_generics: &ImplGenerics,
-        methods: Vec<proc_macro2::TokenStream>,
+        method_signatures: Vec<proc_macro2::TokenStream>,
+        method_bodies: Vec<proc_macro2::TokenStream>,
     ) -> proc_macro2::TokenStream {
         quote! {
             #visibility trait #trait_name #trait_generics:
-                ::unipipe::Stream<Item = Result<<#struct_with_generics as ::unipipe::UniPipe>::Input, TError>> + Sized
+                ::unipipe::Stream<Item = Result<<_SELF as ::unipipe::UniPipe>::Input, TError>> + Sized
             #where_clause
             {
-                #(#methods)*
+                #(#method_signatures)*
             }
 
             impl #impl_generics #trait_name #trait_ty_generics for TStream
             where
                 TStream: ::unipipe::Stream<Item = Result<<#struct_path_with_generics as ::unipipe::UniPipe>::Input, TError>>,
                 #where_clause_predicates
-            {}
+            {
+                #(#method_bodies)*
+            }
+        }
+    }
+
+    fn generate_trait_method_signature(
+        pipe_method_name: &Ident,
+        method_impl_generics: &ImplGenerics,
+        where_clause: Option<&WhereClause>,
+        args: &[PatType],
+    ) -> proc_macro2::TokenStream {
+        quote! {
+            fn #pipe_method_name #method_impl_generics(
+                self,
+                #(#args),*
+            ) -> impl ::unipipe::Stream<Item = Result<<_SELF as ::unipipe::UniPipe>::Output, TError>> + Unpin
+            #where_clause;
         }
     }
 
