@@ -27,10 +27,10 @@ impl UniPipe for MyPipe {
     fn next(&mut self, input: Option<Self::Input>) -> Output<Self::Output> {
         if let Some(input) = input {
             self.state += input;
+            // Some(value) -> Output::One(value)
             Some(self.state)
         } else {
-            // Returning `None` does not indicate the end of the pipe,
-            // use `Output::Done` instead.
+            // None -> Output::Next
             None
         }
         .into()
@@ -64,7 +64,10 @@ To use generated methods from other files, you need to import the generated trai
 ```rust
 use my_pipe::MyPipeUniPipeIteratorExt as _;
 
-let mut iter = vec![1, 2, 3, 4, 5].into_iter().my_pipe();
+let mut iter = vec![1, 2, 3, 4, 5]
+    .into_iter()
+    .my_pipe()
+    .collect::<Vec<_>>();
 ```
 
 ### Output
@@ -78,9 +81,7 @@ let mut iter = vec![1, 2, 3, 4, 5].into_iter().my_pipe();
 - `Output::DoneWithOne(value)`
 - `Output::DoneWithMany(values)`
 
-#### Map `Output`
-
-`Output::map()` is a method that allows you to transform the value of the `Output` without changing the structure of the `Output`.
+##### `Output::map()`
 
 ```rust
 impl UniPipe for OuterPipe {
@@ -88,14 +89,39 @@ impl UniPipe for OuterPipe {
     type Output = i32;
 
     fn next(&mut self, input: Option<Self::Input>) -> Output<Self::Output> {
-        self.inner.next(input).map(|output| -output)
+        self
+            .inner
+            .next(input)
+            .map(|output| -output)
     }
 }
 ```
 
-#### Pipe `Output`
+##### `Output::filter_map()`.
 
-`Output::pipe()` is a method that allows you to pipe the `Output` to another `UniPipe`.
+```rust
+impl UniPipe for OuterPipe {
+    type Input = i32;
+    type Output = i32;
+
+    fn next(&mut self, input: Option<Self::Input>) -> Output<Self::Output> {
+        self
+            .inner
+            .next(input)
+            .filter_map(|output| {
+                if output > 0 {
+                    Some(-output)
+                } else {
+                    None
+                }
+            })
+    }
+}
+```
+
+##### `Output::pipe()`
+
+`Output::pipe()` makes it possible to compose multiple `UniPipe`s together for better reusability:
 
 ```rust
 impl UniPipe for ComposePipe {
