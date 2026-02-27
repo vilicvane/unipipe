@@ -2,6 +2,7 @@ use std::{
     collections::VecDeque,
     mem,
     ops::{Add, Rem, Sub},
+    sync::Mutex,
 };
 
 use unipipe::{Output, UniPipe, unipipe};
@@ -12,8 +13,8 @@ pub struct WindowByOffset<TItem, TOffset, TDistance, TOffsetCallback> {
     offset_callback: TOffsetCallback,
     align_window_start: bool,
     ignore_empty_windows: bool,
-    window: VecDeque<TItem>,
-    window_start: Option<TOffset>,
+    window: Mutex<VecDeque<TItem>>,
+    window_start: Mutex<Option<TOffset>>,
 }
 
 #[derive(Default)]
@@ -68,8 +69,8 @@ where
             offset_callback,
             align_window_start,
             ignore_empty_windows,
-            window: VecDeque::new(),
-            window_start: None,
+            window: Mutex::new(VecDeque::new()),
+            window_start: Mutex::new(None),
         }
     }
 }
@@ -91,18 +92,21 @@ where
     type Output = (Vec<TItem>, (TOffset, TOffset));
 
     fn next(&mut self, input: Option<Self::Input>) -> Output<Self::Output> {
+        let mut self_window = self.window.lock().unwrap();
+        let mut self_window_start = self.window_start.lock().unwrap();
+
         if let Some(item) = input {
             let item_offset = (self.offset_callback)(&item);
 
-            let Some(mut window_start) = self.window_start else {
+            let Some(mut window_start) = *self_window_start else {
                 let window_start = if self.align_window_start {
                     item_offset - item_offset % self.window_step
                 } else {
                     item_offset
                 };
 
-                self.window_start = Some(window_start);
-                self.window.push_back(item);
+                *self_window_start = Some(window_start);
+                self_window.push_back(item);
 
                 return Output::Next;
             };
@@ -130,7 +134,7 @@ where
                 //       -----   < output 3
                 //          --*  < pending
 
-                let window = self.window.iter().cloned().collect::<Vec<_>>();
+                let window = self_window.iter().cloned().collect::<Vec<_>>();
 
                 if self.ignore_empty_windows && window.is_empty() {
                     // As shown in the example above, the pending window could
@@ -143,7 +147,7 @@ where
                         + self.window_step
                         - self.window_size;
 
-                    self.window_start = Some(window_start);
+                    *self_window_start = Some(window_start);
 
                     // After jumping to the new window start, the current window
                     // will need to wait for more items. So we just break the
@@ -160,28 +164,27 @@ where
 
                 window_start = window_start + self.window_step;
 
-                self.window_start = Some(window_start);
+                *self_window_start = Some(window_start);
 
-                let obsolete_end = self
-                    .window
-                    .partition_point(|item| (self.offset_callback)(item) < window_start);
+                let obsolete_end =
+                    self_window.partition_point(|item| (self.offset_callback)(item) < window_start);
 
-                self.window.drain(..obsolete_end);
+                self_window.drain(..obsolete_end);
             }
 
-            self.window.push_back(item);
+            self_window.push_back(item);
 
             return Output::Many(outputs);
         }
 
         // The source sequence ended, let's do some cleanup.
 
-        if self.window.is_empty() {
+        if self_window.is_empty() {
             Output::Done
         } else {
-            let window = mem::take(&mut self.window).into();
+            let window = mem::take(&mut *self_window).into();
 
-            let window_start = self.window_start.unwrap();
+            let window_start = self_window_start.unwrap();
 
             Output::DoneWithOne((window, (window_start, window_start + self.window_size)))
         }

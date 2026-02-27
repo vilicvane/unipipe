@@ -3,12 +3,14 @@ use unipipe::{Output, UniPipe, unipipe};
 use crate::ChunkWhile;
 
 pub struct ChunkBy<'a, TItem> {
-    chunk_while: ChunkWhile<TItem, Box<dyn FnMut(&mut [TItem], &TItem) -> bool + 'a>>,
+    chunk_while: ChunkWhile<TItem, Box<dyn FnMut(&mut [TItem], &TItem) -> bool + Send + 'a>>,
 }
 
 #[unipipe(iterator, try_iterator, stream, try_stream)]
 impl<'a, TItem> ChunkBy<'a, TItem> {
-    pub fn new<TIdentifier>(mut identifier_callback: impl FnMut(&TItem) -> TIdentifier + 'a) -> Self
+    pub fn new<TIdentifier>(
+        mut identifier_callback: impl FnMut(&TItem) -> TIdentifier + Send + 'a,
+    ) -> Self
     where
         TIdentifier: PartialEq,
     {
@@ -21,7 +23,7 @@ impl<'a, TItem> ChunkBy<'a, TItem> {
 
     /// Avoid conflict with the `chunk_by` method from the `itertools` crate.
     pub fn unipipe_chunk_by<TIdentifier>(
-        identifier_callback: impl FnMut(&TItem) -> TIdentifier + 'a,
+        identifier_callback: impl FnMut(&TItem) -> TIdentifier + Send + 'a,
     ) -> Self
     where
         TIdentifier: PartialEq,

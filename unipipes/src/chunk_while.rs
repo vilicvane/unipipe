@@ -1,4 +1,4 @@
-use std::mem;
+use std::{mem, sync::Mutex};
 
 use unipipe::{Output, UniPipe, unipipe};
 
@@ -6,7 +6,7 @@ pub struct ChunkWhile<TItem, TPredicate>
 where
     TPredicate: FnMut(&mut [TItem], &TItem) -> bool,
 {
-    chunk: Vec<TItem>,
+    chunk: Mutex<Vec<TItem>>,
     predicate: TPredicate,
 }
 
@@ -17,7 +17,7 @@ where
 {
     pub fn new(predicate: TPredicate) -> Self {
         Self {
-            chunk: Vec::new(),
+            chunk: Mutex::new(Vec::new()),
             predicate,
         }
     }
@@ -31,25 +31,26 @@ where
     type Output = Vec<TItem>;
 
     fn next(&mut self, input: Option<Self::Input>) -> Output<Self::Output> {
+        let mut chunk = self.chunk.lock().unwrap();
+
         if let Some(input) = input {
-            if self.chunk.is_empty() || (self.predicate)(&mut self.chunk, &input) {
-                self.chunk.push(input);
+            if chunk.is_empty() || (self.predicate)(&mut chunk, &input) {
+                chunk.push(input);
 
-                None
+                Output::Next
             } else {
-                let output = mem::take(&mut self.chunk);
+                let output = mem::take(&mut *chunk);
 
-                self.chunk.push(input);
+                chunk.push(input);
 
-                Some(output)
+                Output::One(output)
             }
         } else {
-            if self.chunk.is_empty() {
-                None
+            if chunk.is_empty() {
+                Output::Done
             } else {
-                Some(mem::take(&mut self.chunk))
+                Output::DoneWithOne(mem::take(&mut *chunk))
             }
         }
-        .into()
     }
 }
