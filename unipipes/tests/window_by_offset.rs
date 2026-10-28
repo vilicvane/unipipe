@@ -1,6 +1,38 @@
 use unipipes::{WindowByOffsetOptions, WindowByOffsetUniPipeIteratorExt as _};
 
 #[test]
+fn skips_empty_windows_without_losing_the_step_alignment() {
+    for (first, next, start) in [
+        (-35_i64, -14, -15),
+        (-35, 5, 5),
+        (3, 33, 33),
+        (3, 1_000_000_007, 1_000_000_003),
+    ] {
+        let outputs: Vec<_> = [first, next]
+            .into_iter()
+            .window_by_offset_with_options(
+                10,
+                10,
+                |offset| *offset,
+                WindowByOffsetOptions {
+                    ignore_empty_windows: true,
+                    ..Default::default()
+                },
+            )
+            .collect();
+
+        assert_eq!(
+            outputs,
+            vec![
+                (vec![first], (first, first + 10)),
+                (vec![next], (start, start + 10)),
+            ],
+            "first={first}, next={next}",
+        );
+    }
+}
+
+#[test]
 fn test_window_by_offset() {
     let inputs = vec![1, 2, 3, 5, 6, 9, 10, 17];
 

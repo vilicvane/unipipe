@@ -35,11 +35,10 @@ where
     TOffsetCallback: FnMut(&TItem) -> TOffset,
     TOffset: Add<TDistance, Output = TOffset>
         + Sub<TDistance, Output = TOffset>
-        + Sub<TOffset, Output = TDistance>
         + Rem<TDistance, Output = TDistance>
         + PartialOrd
         + Copy,
-    TDistance: Rem<TDistance, Output = TDistance> + Copy,
+    TDistance: Copy,
 {
     pub fn new(
         window_size: TDistance,
@@ -82,11 +81,10 @@ where
     TOffsetCallback: FnMut(&TItem) -> TOffset,
     TOffset: Add<TDistance, Output = TOffset>
         + Sub<TDistance, Output = TOffset>
-        + Sub<TOffset, Output = TDistance>
         + Rem<TDistance, Output = TDistance>
         + PartialOrd
         + Copy,
-    TDistance: Rem<TDistance, Output = TDistance> + Copy,
+    TDistance: Copy,
 {
     type Input = TItem;
     type Output = (Vec<TItem>, (TOffset, TOffset));
@@ -143,9 +141,19 @@ where
                     // is not ideal. We would want to calculate the next
                     // window_start and jump there directly.
 
-                    window_start = item_offset - (item_offset - window_end) % self.window_step
-                        + self.window_step
-                        - self.window_size;
+                    let step = self.window_step;
+                    let shifted_offset = item_offset - window_end % step;
+                    let aligned_end = item_offset - shifted_offset % step;
+
+                    // Keep the original step alignment and choose an end
+                    // strictly after the item, including for negative offsets.
+                    let next_end = if aligned_end > item_offset {
+                        aligned_end
+                    } else {
+                        aligned_end + step
+                    };
+
+                    window_start = next_end - self.window_size;
 
                     *self_window_start = Some(window_start);
 
